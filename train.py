@@ -44,7 +44,7 @@ def vectorise_data(dpoints, char_idx):
     ctxs.append([char_idx[c] for c in ''.join(ctx)])
     queries.append([char_idx[c] for c in q])
     targets.append([int(t)])
-  return pad_sequences(ctxs), pad_sequences(queries), pad_sequences(targets)
+  return [pad_sequences(ctxs), pad_sequences(queries)], pad_sequences(targets)
 
 def train(model, model_file, data):
   """Train the given model saving weights to model_file."""
@@ -63,9 +63,9 @@ if __name__ == '__main__':
   # Load and vectorise data
   chars = set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)
   chars = sorted(list(chars))
-  char_indices = dict((c, i) for i, c in enumerate(chars))
-  vctx, vq, vt = vectorise_data(load_data("data/task.txt"), char_indices)
+  # Reserve 0 for padding
+  char_indices = dict((c, i+1) for i, c in enumerate(chars))
   # Load in the model
-  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(chars))
+  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(chars)+1)
   nn_model.summary()
-  train(nn_model, MODEL_FILE)
+  train(nn_model, MODEL_FILE, vectorise_data(load_data("data/task.txt"), char_indices))
