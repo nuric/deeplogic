@@ -65,19 +65,26 @@ def write(preds, isquery=False):
 def gen_task1(context_size):
   """Ground instances only."""
   preds = r_preds(context_size+1)
-  consts = r_consts(context_size+context_size//2+1)
+  consts = r_consts(context_size+1)
   # Create context with both single and double arguments
   ctx = list()
   for i in range(context_size//2):
     args = [random.choice(consts[:-1]), random.choice(consts[:-1])]
     ctx.append([(preds[i], args)])
   for i in range(context_size//2, context_size):
-    ctx.append([(preds[i], random.choice(consts[:-1]))])
+    ctx.append([(preds[i], [random.choice(consts[:-1])])])
+  random.shuffle(ctx)
   print('\n'.join([write(c) for c in ctx]))
   # Successful case when query appears in context
   target_ts = random.sample(ctx, 2)
   for t in target_ts:
     print(TARGET_T.format(write(t, True), 1))
+  # Out of context constant fails
+  target_f = (random.choice(preds[context_size//2:-1]), [consts[-1]])
+  print(TARGET_T.format(writep(target_f), 0))
+  # Out of context predicate fails
+  target_f = (preds[-1], [random.choice(consts[:-1])])
+  print(TARGET_T.format(writep(target_f), 0))
 
 if __name__ == '__main__':
   task = "gen_task" + ARGS.task
