@@ -49,16 +49,35 @@ def r_preds(size):
   """Return size many unique predicates."""
   return r_symbols(size, PRED_SYMBOLS, ARGS.predicate_length)
 
+def writep(pred):
+  """Format single predicate tuple into string."""
+  return PRED_T.format(pred[0], ARG_SEP.join(pred[1]))
+
+def write(preds, isquery=False):
+  """Convert single predicate tuple into string."""
+  head = writep(preds[0])
+  # Is it just a fact
+  if len(preds) == 1:
+    return head if isquery else FACT_T.format(head)
+  # We have a rule
+  return RULE_T.format(head, PRED_SEP.join([writep(p) for p in preds[1:]]))
+
 def gen_task1(context_size):
   """Ground instances only."""
-  preds = zip(r_preds(context_size+1), r_consts(context_size+1))
-  preds = [PRED_T.format(*pc) for pc in preds]
-  ctx = [FACT_T.format(c) for c in preds[:-1]]
-  target_t, target_f = preds[0], preds[-1]
-  random.shuffle(ctx)
-  print('\n'.join(ctx))
-  print(TARGET_T.format(target_t, 1))
-  print(TARGET_T.format(target_f, 0))
+  preds = r_preds(context_size+1)
+  consts = r_consts(context_size+context_size//2+1)
+  # Create context with both single and double arguments
+  ctx = list()
+  for i in range(context_size//2):
+    args = [random.choice(consts[:-1]), random.choice(consts[:-1])]
+    ctx.append([(preds[i], args)])
+  for i in range(context_size//2, context_size):
+    ctx.append([(preds[i], random.choice(consts[:-1]))])
+  print('\n'.join([write(c) for c in ctx]))
+  # Successful case when query appears in context
+  target_ts = random.sample(ctx, 2)
+  for t in target_ts:
+    print(TARGET_T.format(write(t, True), 1))
 
 if __name__ == '__main__':
   task = "gen_task" + ARGS.task
