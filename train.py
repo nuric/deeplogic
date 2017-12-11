@@ -2,9 +2,11 @@
 import argparse
 import random
 import numpy as np
+from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
 from keras.preprocessing.sequence import pad_sequences
 
 from data_gen import CONST_SYMBOLS, VAR_SYMBOLS, PRED_SYMBOLS, EXTRA_SYMBOLS
+import models
 
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
@@ -44,9 +46,26 @@ def vectorise_data(dpoints, char_idx):
     targets.append([int(t)])
   return pad_sequences(ctxs), pad_sequences(queries), pad_sequences(targets)
 
+def train(model, model_file, data):
+  """Train the given model saving weights to model_file."""
+  # Setup callbacks
+  callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
+               ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10, min_lr=0.001, verbose=1),
+               TerminateOnNaN()]
+  # Big data machine learning in the cloud
+  try:
+    model.fit(data[0], data[1], batch_size=12,
+              epochs=200, callbacks=callbacks)
+  finally:
+    print("Training terminated.")
+
 if __name__ == '__main__':
+  # Load and vectorise data
   chars = set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)
   chars = sorted(list(chars))
   char_indices = dict((c, i) for i, c in enumerate(chars))
-  data = load_data("data/task.txt")
-  print(vectorise_data(data, char_indices))
+  vctx, vq, vt = vectorise_data(load_data("data/task.txt"), char_indices)
+  # Load in the model
+  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(chars))
+  nn_model.summary()
+  train(nn_model, MODEL_FILE)
