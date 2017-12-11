@@ -2,21 +2,11 @@
 import argparse
 import random
 
-# Arguments
-parser = argparse.ArgumentParser(description="Generate logic program data.")
-parser.add_argument("task", help="The task to generate.")
-parser.add_argument("size", type=int, help="Number of programs to generate.")
-parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of program context.")
-parser.add_argument("-cl", "--constant_length", default=1, type=int, help="Length of constants.")
-parser.add_argument("-vl", "--variable_length", default=1, type=int, help="Length of variables.")
-parser.add_argument("-pl", "--predicate_length", default=1, type=int, help="Length of predicates.")
-parser.add_argument("-s", "--shuffle_context", action="store_true", help="Shuffle context before output.")
-ARGS = parser.parse_args()
-
 # Symbol Pool
 CONST_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
 VAR_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 PRED_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
+EXTRA_SYMBOLS = ".:-,;()"
 
 # Predicate Templates
 FACT_T = "{}."
@@ -86,6 +76,7 @@ def gen_task1(ctx_size):
     ctx.append([(preds[i], [random.choice(consts[:-1])])])
   # Successful case when query appears in context
   targets = list()
+  # pylint: disable=unsubscriptable-object
   for t in random.sample(ctx, 2):
     targets.append((t[0], 1))
   # Out of context constant fails
@@ -133,6 +124,19 @@ def gen_task2(ctx_size):
   output(ctx, targets)
 
 if __name__ == '__main__':
+  # Arguments
+  parser = argparse.ArgumentParser(description="Generate logic program data.")
+  parser.add_argument("task", help="The task to generate.")
+  parser.add_argument("size", type=int, help="Number of programs to generate.")
+  parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of program context.")
+  parser.add_argument("-cl", "--constant_length", default=1, type=int, help="Length of constants.")
+  parser.add_argument("-vl", "--variable_length", default=1, type=int, help="Length of variables.")
+  # pylint: disable=line-too-long
+  parser.add_argument("-pl", "--predicate_length", default=1, type=int, help="Length of predicates.")
+  parser.add_argument("-s", "--shuffle_context", action="store_true", help="Shuffle context before output.")
+  ARGS = parser.parse_args()
+
+  # Generate given task
   task = "gen_task" + ARGS.task
   for _ in range(ARGS.size):
     globals()[task](ARGS.context_size)

@@ -2,6 +2,9 @@
 import argparse
 import random
 import numpy as np
+from keras.preprocessing.sequence import pad_sequences
+
+from data_gen import CONST_SYMBOLS, VAR_SYMBOLS, PRED_SYMBOLS, EXTRA_SYMBOLS
 
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
@@ -14,7 +17,7 @@ MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
 
-def load_data(fname, shuffle=True):
+def load_data(fname):
   """Load logic programs from given fname."""
   dpoints = list()
   with open(fname) as f:
@@ -32,5 +35,18 @@ def load_data(fname, shuffle=True):
         ctx.append(l)
   return dpoints
 
+def vectorise_data(dpoints, char_idx):
+  """Return embedding indices of dpoints."""
+  ctxs, queries, targets = list(), list(), list()
+  for ctx, q, t in dpoints:
+    ctxs.append([char_idx[c] for c in ''.join(ctx)])
+    queries.append([char_idx[c] for c in q])
+    targets.append([int(t)])
+  return pad_sequences(ctxs), pad_sequences(queries), pad_sequences(targets)
+
 if __name__ == '__main__':
-  print(load_data("data/task.txt"))
+  chars = set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)
+  chars = sorted(list(chars))
+  char_indices = dict((c, i) for i, c in enumerate(chars))
+  data = load_data("data/task.txt")
+  print(vectorise_data(data, char_indices))
