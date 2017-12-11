@@ -13,6 +13,10 @@ parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 ARGS = parser.parse_args()
 
+CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
+# Reserve 0 for padding
+CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
+
 MODEL_NAME = ARGS.model
 MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 
@@ -46,6 +50,11 @@ def vectorise_data(dpoints, char_idx):
     targets.append([int(t)])
   return [pad_sequences(ctxs), pad_sequences(queries)], pad_sequences(targets)
 
+def ask(context, query, model, char_idx):
+  """Predict output for given context and query."""
+  x, _ = vectorise_data([(context, query, 0)], char_idx)
+  return np.asscalar(nn_model.predict(x))
+
 def train(model, model_file, data):
   """Train the given model saving weights to model_file."""
   # Setup callbacks
@@ -58,14 +67,10 @@ def train(model, model_file, data):
               epochs=200, callbacks=callbacks)
   finally:
     print("Training terminated.")
+    print("OUTPUT:", ask(["p(a)"], "p(a)", model, CHAR_IDX))
 
 if __name__ == '__main__':
-  # Load and vectorise data
-  chars = set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)
-  chars = sorted(list(chars))
-  # Reserve 0 for padding
-  char_indices = dict((c, i+1) for i, c in enumerate(chars))
   # Load in the model
-  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(chars)+1)
+  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(CHARS)+1)
   nn_model.summary()
-  train(nn_model, MODEL_FILE, vectorise_data(load_data("data/task.txt"), char_indices))
+  train(nn_model, MODEL_FILE, vectorise_data(load_data("data/task.txt"), CHAR_IDX))
