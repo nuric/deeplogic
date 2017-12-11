@@ -10,6 +10,7 @@ parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of 
 parser.add_argument("-cl", "--constant_length", default=1, type=int, help="Length of constants.")
 parser.add_argument("-vl", "--variable_length", default=1, type=int, help="Length of variables.")
 parser.add_argument("-pl", "--predicate_length", default=1, type=int, help="Length of predicates.")
+parser.add_argument("-s", "--shuffle_context", action="store_true", help="Shuffle context before output.")
 ARGS = parser.parse_args()
 
 # Symbol Pool
@@ -66,55 +67,69 @@ def output(context, targets):
   """Print the context and given targets."""
   # context: [[('p', ['a', 'b'])], ...]
   # targets: [(('p', ['a', 'b']), 1), ...]
-  random.shuffle(context)
+  if ARGS.shuffle_context:
+    random.shuffle(context)
   print('\n'.join([write_r(c) for c in context]))
   for t, v in targets:
     print(TARGET_T.format(write_p(t), v))
 
-def gen_task1(context_size):
+def gen_task1(ctx_size):
   """Ground instances only."""
-  preds = r_preds(context_size+1)
-  consts = r_consts(context_size+1)
+  preds = r_preds(ctx_size+1)
+  consts = r_consts(ctx_size+1)
   # Create context with both single and double arguments
   ctx = list()
-  for i in range(context_size//2):
+  for i in range(ctx_size//2):
     args = [random.choice(consts[:-1]), random.choice(consts[:-1])]
     ctx.append([(preds[i], args)])
-  for i in range(context_size//2, context_size):
+  for i in range(ctx_size//2, ctx_size):
     ctx.append([(preds[i], [random.choice(consts[:-1])])])
   # Successful case when query appears in context
   targets = list()
   for t in random.sample(ctx, 2):
     targets.append((t[0], 1))
   # Out of context constant fails
-  targets.append(((random.choice(preds[:context_size//2]), [random.choice(consts), consts[-1]]), 0))
+  targets.append(((random.choice(preds[:ctx_size//2]), [random.choice(consts), consts[-1]]), 0))
   # Out of context predicate fails
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
   output(ctx, targets)
 
-def gen_task2(context_size):
+def gen_task2(ctx_size):
   """Variablised facts only, no rules."""
-  preds = r_preds(context_size+1)
-  consts = r_consts(context_size+1)
-  var = r_vars(context_size)
+  preds = r_preds(ctx_size+1)
+  consts = r_consts(ctx_size+1)
+  var = r_vars(ctx_size)
   ctx = list()
-  # Double variable argument
-  for i in range(context_size//3):
+  # Double variable same argument
+  for i in range(ctx_size//4):
+    v = random.choice(var)
+    ctx.append([(preds[i], [v, v])])
+  # Double variable unique argument
+  for i in range(ctx_size//4, ctx_size//4*2):
     args = random.sample(var, 2)
     ctx.append([(preds[i], args)])
   # Single variable argument
-  for i in range(context_size//3, context_size//3*2):
+  for i in range(ctx_size//4*2, ctx_size//4*3):
     ctx.append([(preds[i], [random.choice(var)])])
   # Some ground instances
-  for i in range(context_size//3*2, context_size):
+  for i in range(ctx_size//4*3, ctx_size):
     ctx.append([(preds[i], [random.choice(consts)])])
   # Ground case
   targets = [(ctx[-1][0], 1)]
-  # Successful variable grounding
-  p = ctx[0][0][0]
+  # Successful double variable grounding
+  p = ctx[ctx_size//4][0][0]
   targets.append(((p, [random.choice(consts), random.choice(consts)]), 1))
+  # Successful single variable grounding
+  p = ctx[ctx_size//4*2][0][0]
+  targets.append(((p, [random.choice(consts)]), 1))
+  # Fail on non-unique variable grounding
+  p = ctx[0][0][0]
+  targets.append(((p, random.sample(consts, 2)), 0))
   # Out of context predicate fails
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
+  # Out of context constant fails
+  p = ctx[-1][0][0]
+  targets.append(((p, [consts[-1]]), 0))
   output(ctx, targets)
 
 if __name__ == '__main__':
