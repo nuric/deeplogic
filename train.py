@@ -6,7 +6,7 @@ from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
 from keras.preprocessing.sequence import pad_sequences
 
 from data_gen import CONST_SYMBOLS, VAR_SYMBOLS, PRED_SYMBOLS, EXTRA_SYMBOLS
-import models
+from models import build_model
 
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
@@ -16,6 +16,9 @@ ARGS = parser.parse_args()
 CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
 # Reserve 0 for padding
 CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
+
+MAX_CTX_LEN = 40
+MAX_Q_LEN = 10
 
 MODEL_NAME = ARGS.model
 MODEL_FILE = "weights/"+MODEL_NAME+".h5"
@@ -47,13 +50,15 @@ def vectorise_data(dpoints, char_idx):
   for ctx, q, t in dpoints:
     ctxs.append([char_idx[c] for c in ''.join(ctx)])
     queries.append([char_idx[c] for c in q])
-    targets.append([int(t)])
-  return [pad_sequences(ctxs), pad_sequences(queries)], pad_sequences(targets)
+    targets.append(int(t))
+  return ([pad_sequences(ctxs, MAX_CTX_LEN),
+           pad_sequences(queries, MAX_Q_LEN)],
+          np.array(targets))
 
 def ask(context, query, model, char_idx):
   """Predict output for given context and query."""
   x, _ = vectorise_data([(context, query, 0)], char_idx)
-  return np.asscalar(nn_model.predict(x))
+  return np.asscalar(model.predict(x))
 
 def train(model, model_file, data):
   """Train the given model saving weights to model_file."""
@@ -67,10 +72,14 @@ def train(model, model_file, data):
               epochs=200, callbacks=callbacks)
   finally:
     print("Training terminated.")
-    print("OUTPUT:", ask(["p(a)"], "p(a)", model, CHAR_IDX))
+    print("OUTPUT:", ask(["v(n)."], "v(n)", model, CHAR_IDX))
+    print("OUTPUT:", ask(["p(a)."], "p(b)", model, CHAR_IDX))
 
 if __name__ == '__main__':
   # Load in the model
-  nn_model = models.build_model(MODEL_NAME, MODEL_FILE, char_size=len(CHARS)+1)
+  nn_model = build_model(MODEL_NAME, MODEL_FILE,
+                         context_maxlen=MAX_CTX_LEN,
+                         query_maxlen=MAX_Q_LEN,
+                         char_size=len(CHARS)+1)
   nn_model.summary()
   train(nn_model, MODEL_FILE, vectorise_data(load_data("data/task.txt"), CHAR_IDX))
