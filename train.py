@@ -2,7 +2,7 @@
 import argparse
 import random
 import numpy as np
-from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
+from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from keras.preprocessing.sequence import pad_sequences
 
 from data_gen import CONST_SYMBOLS, VAR_SYMBOLS, PRED_SYMBOLS, EXTRA_SYMBOLS
@@ -65,6 +65,7 @@ def train(model, model_file, data):
   # Setup callbacks
   callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
                ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10, min_lr=0.001, verbose=1),
+               TensorBoard(write_images=True, embeddings_freq=1),
                TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:
@@ -72,7 +73,7 @@ def train(model, model_file, data):
               epochs=200, callbacks=callbacks)
   finally:
     print("Training terminated.")
-    print("OUTPUT:", ask(["v(n)."], "v(n)", model, CHAR_IDX))
+    print("OUTPUT:", ask(["p(a)."], "p(a)", model, CHAR_IDX))
     print("OUTPUT:", ask(["p(a)."], "p(b)", model, CHAR_IDX))
 
 if __name__ == '__main__':

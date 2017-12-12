@@ -23,6 +23,8 @@ def r_string(symbols, length):
 
 def r_symbols(size, symbols, length):
   """Return unique random from given symbols."""
+  if length == 1:
+    return random.sample(symbols, size)
   rset = set()
   while len(rset) < size:
     rset.add(r_string(symbols, length))
@@ -68,19 +70,17 @@ def gen_task1(ctx_size):
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   # Create context with both single and double arguments
-  ctx = list()
-  for i in range(ctx_size//2):
+  ctx, div = list(), ctx_size//2
+  for i in range(div):
     args = [random.choice(consts[:-1]), random.choice(consts[:-1])]
     ctx.append([(preds[i], args)])
-  for i in range(ctx_size//2, ctx_size):
+  for i in range(div, ctx_size):
     ctx.append([(preds[i], [random.choice(consts[:-1])])])
   # Successful case when query appears in context
-  targets = list()
-  # pylint: disable=unsubscriptable-object
-  for t in random.sample(ctx, 2):
-    targets.append((t[0], 1))
+  targets = [(ctx[0][0], 1), (ctx[div][0], 1)]
   # Out of context constant fails
   targets.append(((random.choice(preds[:ctx_size//2]), [random.choice(consts), consts[-1]]), 0))
+  targets.append(((random.choice(preds[div:-1]), [consts[-1]]), 0))
   # Out of context predicate fails
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
   output(ctx, targets)
