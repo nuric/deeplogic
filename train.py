@@ -73,8 +73,15 @@ def train(model, model_file, data):
               epochs=200, callbacks=callbacks)
   finally:
     print("Training terminated.")
-    print("OUTPUT:", ask(["p(a)."], "p(a)", model, CHAR_IDX))
-    print("OUTPUT:", ask(["p(a)."], "p(b)", model, CHAR_IDX))
+    # Dump some examples for debugging
+    samples = [("p(a).", "p(a)"),
+               ("p(a).", "p(b)"),
+               ("p(X).", "p(c)"),
+               ("p(X,Y).", "q(a,b)"),
+               ("p(X,X).", "p(a,b)"),
+               ("p(X,X).", "p(a,a)")]
+    for c, q in samples:
+      print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
 
 if __name__ == '__main__':
   # Load in the model
