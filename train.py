@@ -93,6 +93,8 @@ if __name__ == '__main__':
   vdata = vectorise_data(load_data("data/task.txt"), CHAR_IDX)
   MAX_CTX_LEN = vdata[0][0].shape[1]
   MAX_Q_LEN = vdata[0][1].shape[1]
+  print("MAX_CTX_LEN:", MAX_CTX_LEN)
+  print("MAX_Q_LEN:", MAX_Q_LEN)
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
                          context_maxlen=MAX_CTX_LEN,

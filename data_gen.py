@@ -90,28 +90,28 @@ def gen_task2(ctx_size):
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   var = r_vars(ctx_size)
-  ctx = list()
+  ctx, div = list(), ctx_size//4
   # Double variable same argument
-  for i in range(ctx_size//4):
+  for i in range(div):
     v = random.choice(var)
     ctx.append([(preds[i], [v, v])])
   # Double variable unique argument
-  for i in range(ctx_size//4, ctx_size//4*2):
+  for i in range(div, div*2):
     args = random.sample(var, 2)
     ctx.append([(preds[i], args)])
   # Single variable argument
-  for i in range(ctx_size//4*2, ctx_size//4*3):
+  for i in range(div*2, div*3):
     ctx.append([(preds[i], [random.choice(var)])])
   # Some ground instances
-  for i in range(ctx_size//4*3, ctx_size):
+  for i in range(div*3, ctx_size):
     ctx.append([(preds[i], [random.choice(consts)])])
   # Ground case
   targets = [(ctx[-1][0], 1)]
   # Successful double variable grounding
-  p = ctx[ctx_size//4][0][0]
+  p = ctx[div][0][0]
   targets.append(((p, [random.choice(consts), random.choice(consts)]), 1))
   # Successful single variable grounding
-  p = ctx[ctx_size//4*2][0][0]
+  p = ctx[div*2][0][0]
   targets.append(((p, [random.choice(consts)]), 1))
   # Fail on non-unique variable grounding
   p = ctx[0][0][0]

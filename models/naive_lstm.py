@@ -4,7 +4,7 @@ from keras.layers import Bidirectional, concatenate
 from keras.models import Model
 
 EMBEDDING_DIM = 25
-HIDDEN_DIM = 100
+HIDDEN_DIM = 50
 
 # pylint: disable=line-too-long
 
@@ -25,7 +25,7 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
 
   # Prediction
   out = LSTM(HIDDEN_DIM, name='ctxq_read')(ctxq)
-  out = Dense(1, activation='sigmoid', name='out')(out)
+  out = Dense(1, activation='sigmoid', use_bias=False, name='out')(out)
 
   model = Model([context, query], out)
   model.compile(loss='binary_crossentropy',
