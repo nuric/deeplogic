@@ -17,6 +17,7 @@ CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
 # Reserve 0 for padding
 CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
 
+# Adjusted after loading data
 MAX_CTX_LEN = 40
 MAX_Q_LEN = 10
 
@@ -44,20 +45,24 @@ def load_data(fname):
         ctx.append(l)
   return dpoints
 
-def vectorise_data(dpoints, char_idx):
+def vectorise_data(dpoints, char_idx, pad=False):
   """Return embedding indices of dpoints."""
   ctxs, queries, targets = list(), list(), list()
   for ctx, q, t in dpoints:
     ctxs.append([char_idx[c] for c in ''.join(ctx)])
     queries.append([char_idx[c] for c in q])
     targets.append(int(t))
-  return ([pad_sequences(ctxs, MAX_CTX_LEN),
-           pad_sequences(queries, MAX_Q_LEN)],
+  if pad:
+    return ([pad_sequences(ctxs, MAX_CTX_LEN),
+             pad_sequences(queries, MAX_Q_LEN)],
+            np.array(targets))
+  return ([pad_sequences(ctxs),
+           pad_sequences(queries)],
           np.array(targets))
 
 def ask(context, query, model, char_idx):
   """Predict output for given context and query."""
-  x, _ = vectorise_data([(context, query, 0)], char_idx)
+  x, _ = vectorise_data([(context, query, 0)], char_idx, True)
   return np.asscalar(model.predict(x))
 
 def train(model, model_file, data):
@@ -84,10 +89,14 @@ def train(model, model_file, data):
       print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
 
 if __name__ == '__main__':
+  # Load the data
+  vdata = vectorise_data(load_data("data/task.txt"), CHAR_IDX)
+  MAX_CTX_LEN = vdata[0][0].shape[1]
+  MAX_Q_LEN = vdata[0][1].shape[1]
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
                          context_maxlen=MAX_CTX_LEN,
                          query_maxlen=MAX_Q_LEN,
                          char_size=len(CHARS)+1)
   nn_model.summary()
-  train(nn_model, MODEL_FILE, vectorise_data(load_data("data/task.txt"), CHAR_IDX))
+  train(nn_model, MODEL_FILE, vdata)
