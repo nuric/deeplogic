@@ -11,6 +11,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
+parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 ARGS = parser.parse_args()
 
 CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
@@ -63,7 +64,7 @@ def vectorise_data(dpoints, char_idx, pad=False):
 def ask(context, query, model, char_idx):
   """Predict output for given context and query."""
   x, _ = vectorise_data([(context, query, 0)], char_idx, True)
-  return np.asscalar(model.predict(x))
+  return model.predict(x)
 
 def train(model, model_file, data):
   """Train the given model saving weights to model_file."""
@@ -93,12 +94,15 @@ if __name__ == '__main__':
   vdata = vectorise_data(load_data("data/task.txt"), CHAR_IDX)
   MAX_CTX_LEN = vdata[0][0].shape[1]
   MAX_Q_LEN = vdata[0][1].shape[1]
-  print("MAX_CTX_LEN:", MAX_CTX_LEN)
-  print("MAX_Q_LEN:", MAX_Q_LEN)
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
                          context_maxlen=MAX_CTX_LEN,
                          query_maxlen=MAX_Q_LEN,
                          char_size=len(CHARS)+1)
   nn_model.summary()
-  train(nn_model, MODEL_FILE, vdata)
+  print("MAX_CTX_LEN:", MAX_CTX_LEN)
+  print("MAX_Q_LEN:", MAX_Q_LEN)
+  if ARGS.debug:
+    print(ask("p(a).", "p(b)", nn_model, CHAR_IDX))
+  else:
+    train(nn_model, MODEL_FILE, vdata)
