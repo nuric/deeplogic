@@ -1,11 +1,12 @@
 """Iterative cross attention model."""
 import keras.backend as K
-from keras.layers import Input, Activation, Dense, GRU, Lambda, Permute
+from keras.layers import Input, Activation, Embedding, Dense, GRU, Lambda, Permute
 from keras.layers.wrappers import Bidirectional
 from keras.layers.merge import dot, concatenate
 from keras.models import Model
 
-LATENT_DIM = 75
+EMBEDDING_DIM = 25
+LATENT_DIM = 50
 ITERATIONS = 2
 
 # pylint: disable=line-too-long
@@ -17,17 +18,15 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
   query = Input(shape=(query_maxlen,), name='query', dtype='int32')
 
   # Contextual embeddeding of symbols
-  embedded_ctx = Lambda(K.one_hot, arguments={'num_classes':char_size},
-                        output_shape=(context_maxlen, char_size), name='embed_context')(context)
-  embedded_q = Lambda(K.one_hot, arguments={'num_classes':char_size},
-                      output_shape=(query_maxlen, char_size), name='embed_query')(query)
+  embed = Embedding(char_size, EMBEDDING_DIM, mask_zero=True, name='embed')
+  embedded_ctx, embedded_q = embed(context), embed(query)
 
-  rembed = Bidirectional(GRU(LATENT_DIM, return_sequences=True), name='re_embed')
+  rembed = GRU(LATENT_DIM, return_sequences=True, name='re_embed')
   rembedded_ctx, rembedded_q = rembed(embedded_ctx), rembed(embedded_q)
   # (samples, context_maxlen, 2*LATENT_DIM), (samples, query_maxlen, 2*LATENT_DIM)
 
   # Cross attention mechanism based on similarity
-  match = dot([rembedded_ctx, rembedded_q], axes=(2, 2)) # (samples, context_maxlen, query_maxlen)
+  match = dot([rembedded_ctx, rembedded_q], axes=(2, 2), normalize=True) # (samples, context_maxlen, query_maxlen)
   ctxq_match = Activation('softmax')(match)
   qctx_match = Permute((2, 1))(match) # (samples, query_maxlen, context_maxlen)
   qctx_match = Activation('softmax')(qctx_match)
@@ -44,7 +43,7 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
 
   # Predication
   model_combined = concatenate([model_ctx, model_q])
-  out = Dense(1, activation='sigmoid', name='out')(model_combined)
+  out = Dense(1, activation='sigmoid', use_bias=False, name='out')(model_combined)
 
   model = Model([context, query], out)
   model.compile(loss='binary_crossentropy',

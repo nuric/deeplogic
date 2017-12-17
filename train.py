@@ -76,7 +76,8 @@ def train(model, model_file, data):
   # Big data machine learning in the cloud
   try:
     model.fit(data[0], data[1], batch_size=12,
-              epochs=200, callbacks=callbacks)
+              epochs=200, callbacks=callbacks,
+              validation_split=0.1)
   finally:
     print("Training terminated.")
     # Dump some examples for debugging
