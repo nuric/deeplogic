@@ -121,6 +121,34 @@ def gen_task2(ctx_size):
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
   output(ctx, targets)
 
+def gen_task3(ctx_size):
+  """Single step deduction."""
+  preds = r_preds(ctx_size+1)
+  consts = r_consts(ctx_size+1)
+  var = r_vars(ctx_size)
+  ctx, div = list(), ctx_size//2
+  # Variable deduction rules
+  for i in range(div):
+    v = random.choice(var)
+    ctx.append([(preds[i*2], [v]), (preds[i*2+1], [v])])
+  # Ground instances
+  for i in range(div):
+    args = random.sample(consts, 2)
+    ctx.append([(preds[i*2+1], consts[i])])
+  targets = list()
+  # Successful deduction
+  p = ctx[0][0][0]
+  targets.append(((p, [consts[0]]), 1))
+  # Successful ground instance
+  targets.append((ctx[-1][0], 1))
+  # Fail on unknown const deduction
+  p = ctx[div-1][0][0]
+  targets.append(((p, [random.choice(consts[div:])]), 0))
+  # Fail on unsatisfied premise
+  p = ctx[1][0][0]
+  targets.append(((p, [random.choice(consts[div:])]), 0))
+  output(ctx, targets)
+
 if __name__ == '__main__':
   # Arguments
   parser = argparse.ArgumentParser(description="Generate logic program data.")

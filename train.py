@@ -86,7 +86,8 @@ def train(model, model_file, data):
                ("p(X).", "p(c)."),
                ("p(X,Y).", "q(a,b)."),
                ("p(X,X).", "p(a,b)."),
-               ("p(X,X).", "p(a,a).")]
+               ("p(X,X).", "p(a,b)."),
+               ("p(X):-q(X).r(a).", "p(a).")]
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
 
@@ -104,6 +105,6 @@ if __name__ == '__main__':
   print("MAX_CTX_LEN:", MAX_CTX_LEN)
   print("MAX_Q_LEN:", MAX_Q_LEN)
   if ARGS.debug:
-    print(ask("p(a).", "p(b)", nn_model, CHAR_IDX))
+    print(ask("p(a).", "p(b).", nn_model, CHAR_IDX))
   else:
     train(nn_model, MODEL_FILE, vdata)
