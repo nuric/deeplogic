@@ -1,11 +1,10 @@
 """Iterative cross attention model."""
 import keras.backend as K
-from keras.layers import Input, Activation, Embedding, Dense, GRU, Lambda, Permute
+from keras.layers import Input, Activation, Dense, GRU, Lambda, Permute
 from keras.layers.wrappers import Bidirectional
 from keras.layers.merge import dot, concatenate
 from keras.models import Model
 
-EMBEDDING_DIM = 25
 LATENT_DIM = 50
 ITERATIONS = 2
 
@@ -18,8 +17,10 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
   query = Input(shape=(query_maxlen,), name='query', dtype='int32')
 
   # Contextual embeddeding of symbols
-  embed = Embedding(char_size, EMBEDDING_DIM, mask_zero=True, name='embed')
-  embedded_ctx, embedded_q = embed(context), embed(query)
+  embedded_ctx = Lambda(K.one_hot, arguments={'num_classes':char_size},
+                        output_shape=(context_maxlen, char_size), name='embed_context')(context)
+  embedded_q = Lambda(K.one_hot, arguments={'num_classes':char_size},
+                      output_shape=(query_maxlen, char_size), name='embed_query')(query)
 
   rembed = GRU(LATENT_DIM, return_sequences=True, name='re_embed')
   rembedded_ctx, rembedded_q = rembed(embedded_ctx), rembed(embedded_q)
