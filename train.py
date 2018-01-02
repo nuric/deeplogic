@@ -54,11 +54,11 @@ def vectorise_data(dpoints, char_idx, pad=False):
     queries.append([char_idx[c] for c in q])
     targets.append(int(t))
   if pad:
-    return ([pad_sequences(ctxs, MAX_CTX_LEN),
-             pad_sequences(queries, MAX_Q_LEN)],
+    return ([pad_sequences(ctxs, MAX_CTX_LEN, padding='post'),
+             pad_sequences(queries, MAX_Q_LEN, padding='post')],
             np.array(targets))
-  return ([pad_sequences(ctxs),
-           pad_sequences(queries)],
+  return ([pad_sequences(ctxs, padding='post'),
+           pad_sequences(queries, padding='post')],
           np.array(targets))
 
 def ask(context, query, model, char_idx):
@@ -71,7 +71,7 @@ def train(model, model_file, data):
   # Setup callbacks
   callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
                ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10, min_lr=0.001, verbose=1),
-               TensorBoard(write_images=True, embeddings_freq=1),
+               TensorBoard(write_images=True, histogram_freq=4),
                TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:
@@ -81,12 +81,12 @@ def train(model, model_file, data):
   finally:
     print("Training terminated.")
     # Dump some examples for debugging
-    samples = [("p(a).", "p(a)"),
-               ("p(a).", "p(b)"),
-               ("p(X).", "p(c)"),
-               ("p(X,Y).", "q(a,b)"),
-               ("p(X,X).", "p(a,b)"),
-               ("p(X,X).", "p(a,a)")]
+    samples = [("p(a).", "p(a)."),
+               ("p(a).", "p(b)."),
+               ("p(X).", "p(c)."),
+               ("p(X,Y).", "q(a,b)."),
+               ("p(X,X).", "p(a,b)."),
+               ("p(X,X).", "p(a,a).")]
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
 

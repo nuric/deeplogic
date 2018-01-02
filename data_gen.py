@@ -63,7 +63,7 @@ def output(context, targets):
     random.shuffle(context)
   print('\n'.join([write_r(c) for c in context]))
   for t, v in targets:
-    print(TARGET_T.format(write_p(t), v))
+    print(TARGET_T.format(write_r([t]), v))
 
 def gen_task1(ctx_size):
   """Ground instances only."""
@@ -79,14 +79,16 @@ def gen_task1(ctx_size):
   # Successful case when query appears in context
   targets = [(ctx[0][0], 1), (ctx[div][0], 1)]
   # Out of context constant fails
-  targets.append(((random.choice(preds[:ctx_size//2]), [random.choice(consts), consts[-1]]), 0))
-  targets.append(((random.choice(preds[div:-1]), [consts[-1]]), 0))
+  if random.random() < 0.5:
+    targets.append(((random.choice(preds[:ctx_size//2]), [random.choice(consts), consts[-1]]), 0))
+  else:
+    targets.append(((random.choice(preds[div:-1]), [consts[-1]]), 0))
   # Out of context predicate fails
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
   output(ctx, targets)
 
 def gen_task2(ctx_size):
-  """Variablised facts only, no rules."""
+  """Variablised facts only."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   var = r_vars(ctx_size)
@@ -105,8 +107,7 @@ def gen_task2(ctx_size):
   # Some ground instances
   for i in range(div*3, ctx_size):
     ctx.append([(preds[i], [random.choice(consts)])])
-  # Ground case
-  targets = [(ctx[-1][0], 1)]
+  targets = list()
   # Successful double variable grounding
   p = ctx[div][0][0]
   targets.append(((p, [random.choice(consts), random.choice(consts)]), 1))
@@ -118,9 +119,6 @@ def gen_task2(ctx_size):
   targets.append(((p, random.sample(consts, 2)), 0))
   # Out of context predicate fails
   targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
-  # Out of context constant fails
-  p = ctx[-1][0][0]
-  targets.append(((p, [consts[-1]]), 0))
   output(ctx, targets)
 
 if __name__ == '__main__':
