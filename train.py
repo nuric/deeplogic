@@ -17,6 +17,8 @@ ARGS = parser.parse_args()
 CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
 # Reserve 0 for padding
 CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
+IDX_CHAR = [0]
+IDX_CHAR.extend(CHARS)
 
 # Adjusted after loading data
 MAX_CTX_LEN = 40
@@ -64,7 +66,12 @@ def vectorise_data(dpoints, char_idx, pad=False):
 def ask(context, query, model, char_idx):
   """Predict output for given context and query."""
   x, _ = vectorise_data([(context, query, 0)], char_idx, True)
-  return model.predict(x)
+  out = model.predict(x)
+  # Decode intermediate outputs
+  if len(out) > 1:
+    for o in out[:-1]:
+      print([IDX_CHAR[i] for i in np.argmax(o[0], axis=1)])
+  return np.asscalar(out[-1])
 
 def train(model, model_file, data):
   """Train the given model saving weights to model_file."""
@@ -105,6 +112,6 @@ if __name__ == '__main__':
   print("MAX_CTX_LEN:", MAX_CTX_LEN)
   print("MAX_Q_LEN:", MAX_Q_LEN)
   if ARGS.debug:
-    print(ask("p(a).", "p(b).", nn_model, CHAR_IDX))
+    print("DEBUG:", ask("p(X):-q(X).q(a).", "p(a).", nn_model, CHAR_IDX))
   else:
     train(nn_model, MODEL_FILE, vdata)
