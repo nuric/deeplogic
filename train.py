@@ -82,7 +82,7 @@ def train(model, model_file, data):
                TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:
-    model.fit(data[0], data[1], batch_size=12,
+    model.fit(data[0], data[1], batch_size=32,
               epochs=200, callbacks=callbacks,
               validation_split=0.1)
   finally:
@@ -93,7 +93,7 @@ def train(model, model_file, data):
                ("p(X).", "p(c)."),
                ("p(X,Y).", "q(a,b)."),
                ("p(X,X).", "p(a,b)."),
-               ("p(X,X).", "p(a,b)."),
+               ("p(X,X).", "p(a,a)."),
                ("p(X):-q(X).r(a).", "p(a).")]
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
