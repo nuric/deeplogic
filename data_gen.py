@@ -1,6 +1,6 @@
 """Data generation script for logic programs."""
 import argparse
-import random
+import random as R
 
 # Symbol Pool
 CONST_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
@@ -18,13 +18,13 @@ TARGET_T = "? {} {}"
 
 def r_string(symbols, length):
   """Return random sequence from given symbols."""
-  return ''.join(random.choice(symbols)
+  return ''.join(R.choice(symbols)
                  for _ in range(length))
 
 def r_symbols(size, symbols, length):
   """Return unique random from given symbols."""
   if length == 1:
-    return random.sample(symbols, size)
+    return R.sample(symbols, size)
   rset = set()
   while len(rset) < size:
     rset.add(r_string(symbols, length))
@@ -60,7 +60,7 @@ def output(context, targets):
   # context: [[('p', ['a', 'b'])], ...]
   # targets: [(('p', ['a', 'b']), 1), ...]
   if ARGS.shuffle_context:
-    random.shuffle(context)
+    R.shuffle(context)
   print('\n'.join([write_r(c) for c in context]))
   for t, v in targets:
     print(TARGET_T.format(write_r([t]), v))
@@ -72,19 +72,19 @@ def gen_task1(ctx_size):
   # Create context with both single and double arguments
   ctx, div = list(), ctx_size//2
   for i in range(div):
-    args = [random.choice(consts[:-1]), random.choice(consts[:-1])]
+    args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
     ctx.append([(preds[i], args)])
   for i in range(div, ctx_size):
-    ctx.append([(preds[i], [random.choice(consts[:-1])])])
+    ctx.append([(preds[i], [R.choice(consts[:-1])])])
   # Successful case when query appears in context
   targets = [(ctx[0][0], 1), (ctx[div][0], 1)]
   # Out of context constant fails
-  if random.random() < 0.5:
-    targets.append(((random.choice(preds[:ctx_size//2]), [random.choice(consts), consts[-1]]), 0))
+  if R.random() < 0.5:
+    targets.append(((R.choice(preds[:ctx_size//2]), [R.choice(consts), consts[-1]]), 0))
   else:
-    targets.append(((random.choice(preds[div:-1]), [consts[-1]]), 0))
+    targets.append(((R.choice(preds[div:-1]), [consts[-1]]), 0))
   # Out of context predicate fails
-  targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
+  targets.append(((preds[-1], [R.choice(consts[:-1])]), 0))
   output(ctx, targets)
 
 def gen_task2(ctx_size):
@@ -95,30 +95,30 @@ def gen_task2(ctx_size):
   ctx, div = list(), ctx_size//4
   # Double variable same argument
   for i in range(div):
-    v = random.choice(var)
+    v = R.choice(var)
     ctx.append([(preds[i], [v, v])])
   # Double variable unique argument
   for i in range(div, div*2):
-    args = random.sample(var, 2)
+    args = R.sample(var, 2)
     ctx.append([(preds[i], args)])
   # Single variable argument
   for i in range(div*2, div*3):
-    ctx.append([(preds[i], [random.choice(var)])])
+    ctx.append([(preds[i], [R.choice(var)])])
   # Some ground instances
   for i in range(div*3, ctx_size):
-    ctx.append([(preds[i], [random.choice(consts)])])
+    ctx.append([(preds[i], [R.choice(consts)])])
   targets = list()
   # Successful double variable grounding
   p = ctx[div][0][0]
-  targets.append(((p, [random.choice(consts), random.choice(consts)]), 1))
+  targets.append(((p, [R.choice(consts), R.choice(consts)]), 1))
   # Successful single variable grounding
   p = ctx[div*2][0][0]
-  targets.append(((p, [random.choice(consts)]), 1))
+  targets.append(((p, [R.choice(consts)]), 1))
   # Fail on non-unique variable grounding
   p = ctx[0][0][0]
-  targets.append(((p, random.sample(consts, 2)), 0))
+  targets.append(((p, R.sample(consts, 2)), 0))
   # Out of context predicate fails
-  targets.append(((preds[-1], [random.choice(consts[:-1])]), 0))
+  targets.append(((preds[-1], [R.choice(consts[:-1])]), 0))
   output(ctx, targets)
 
 def gen_task3(ctx_size):
@@ -129,11 +129,11 @@ def gen_task3(ctx_size):
   ctx, div = list(), ctx_size//2
   # Variable deduction rules
   for i in range(div):
-    v = random.choice(var)
+    v = R.choice(var)
     ctx.append([(preds[i*2], [v]), (preds[i*2+1], [v])])
   # Ground instances
   for i in range(div):
-    args = random.sample(consts, 2)
+    args = R.sample(consts, 2)
     ctx.append([(preds[i*2+1], consts[i])])
   targets = list()
   # Successful deduction
@@ -143,10 +143,10 @@ def gen_task3(ctx_size):
   targets.append((ctx[-1][0], 1))
   # Fail on unknown const deduction
   p = ctx[div-1][0][0]
-  targets.append(((p, [random.choice(consts[div:])]), 0))
+  targets.append(((p, [R.choice(consts[div:])]), 0))
   # Fail on unsatisfied premise
   p = ctx[1][0][0]
-  targets.append(((p, [random.choice(consts[div:])]), 0))
+  targets.append(((p, [R.choice(consts[div:])]), 0))
   output(ctx, targets)
 
 if __name__ == '__main__':
