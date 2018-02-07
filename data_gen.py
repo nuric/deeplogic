@@ -133,14 +133,13 @@ def gen_task3(ctx_size):
     ctx.append([(preds[i*2], [v]), (preds[i*2+1], [v])])
   # Ground instances
   for i in range(div):
-    args = R.sample(consts, 2)
-    ctx.append([(preds[i*2+1], consts[i])])
+    ctx.append([(preds[i*2+1], [consts[i]])])
   targets = list()
   # Successful deduction
   p = ctx[0][0][0]
   targets.append(((p, [consts[0]]), 1))
-  # Successful ground instance
-  targets.append((ctx[-1][0], 1))
+  p = ctx[1][0][0]
+  targets.append(((p, [consts[1]]), 1))
   # Fail on unknown const deduction
   p = ctx[div-1][0][0]
   targets.append(((p, [R.choice(consts[div:])]), 0))
