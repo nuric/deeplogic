@@ -66,7 +66,7 @@ def output(context, targets):
     print(TARGET_T.format(write_r([t]), v))
 
 def gen_task1(ctx_size):
-  """Ground instances only."""
+  """Ground instances only: p(a).q(c,b)."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   # Create context with both single and double arguments
@@ -88,7 +88,7 @@ def gen_task1(ctx_size):
   output(ctx, targets)
 
 def gen_task2(ctx_size):
-  """Variablised facts only."""
+  """Variablised facts only: p(X).q(X,Y)."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   var = r_vars(ctx_size)
@@ -122,7 +122,7 @@ def gen_task2(ctx_size):
   output(ctx, targets)
 
 def gen_task3(ctx_size):
-  """Single step deduction."""
+  """Single step deduction: p(X):-q(X)."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   var = r_vars(ctx_size)
@@ -146,6 +146,35 @@ def gen_task3(ctx_size):
   # Fail on unsatisfied premise
   p = ctx[1][0][0]
   targets.append(((p, [R.choice(consts[div:])]), 0))
+  output(ctx, targets)
+
+def gen_task4(ctx_size):
+  """Transitive case: p(X,Y):-q(X,Z);R(Z,Y)."""
+  preds = r_preds(ctx_size+1)
+  consts = r_consts(ctx_size+1)
+  var = r_vars(ctx_size)
+  ctx, div = list(), ctx_size//3
+  # Transitive rules
+  for i in range(div):
+    vs = R.sample(var, 3)
+    r = [(preds[i*3], [vs[0], vs[2]]),
+         (preds[i*3+1], [vs[0], vs[1]]),
+         (preds[i*3+2], [vs[1], vs[2]])]
+    ctx.append(r)
+  # Ground instances to satisfy deduction
+  for i in range(div//2):
+    ctx.append([(preds[i*3+1], [consts[i*2], consts[i*2+1]])])
+    ctx.append([(preds[i*3+2], [consts[i*2+1], consts[i*2+2]])])
+  for i in range(div//2, div):
+    ctx.append([(preds[i*3+1], [consts[i*2], consts[i*2+1]])])
+    ctx.append([(preds[i*3+2], [consts[-1], consts[i*2+2]])])
+  targets = list()
+  # Successful deduction
+  p = ctx[0][0][0]
+  targets.append(((p, [consts[0], consts[2]]), 1))
+  # Fail on non-matching premise
+  p = ctx[div//2][0][0]
+  targets.append(((p, [consts[div], consts[div+2]]), 0))
   output(ctx, targets)
 
 if __name__ == '__main__':
