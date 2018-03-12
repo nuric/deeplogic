@@ -1,11 +1,10 @@
 """Training module for logic-memnn"""
 import argparse
-import random
 import numpy as np
-from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
-from keras.preprocessing.sequence import pad_sequences
+from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
 
-from data_gen import CONST_SYMBOLS, VAR_SYMBOLS, PRED_SYMBOLS, EXTRA_SYMBOLS
+from data_gen import CHAR_IDX
+from utils import LogicSeq
 from models import build_model
 
 # Arguments
@@ -14,77 +13,34 @@ parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 ARGS = parser.parse_args()
 
-CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
-# Reserve 0 for padding
-CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
-IDX_CHAR = [0]
-IDX_CHAR.extend(CHARS)
-
-# Adjusted after loading data
-MAX_CTX_LEN = 40
-MAX_Q_LEN = 10
-
 MODEL_NAME = ARGS.model
 MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
 
-def load_data(fname):
-  """Load logic programs from given fname."""
-  dpoints = list()
-  with open(fname) as f:
-    ctx, isnew_ctx = list(), False
-    for l in f.readlines():
-      l = l.strip()
-      if l[0] == '?':
-        _, q, t = l.split()
-        dpoints.append((random.sample(ctx, len(ctx)), q, t))
-        isnew_ctx = True
-      else:
-        if isnew_ctx:
-          ctx = list()
-          isnew_ctx = False
-        ctx.append(l)
-  return dpoints
-
-def vectorise_data(dpoints, char_idx, pad=False):
-  """Return embedding indices of dpoints."""
-  ctxs, queries, targets = list(), list(), list()
-  for ctx, q, t in dpoints:
-    ctxs.append([char_idx[c] for c in ''.join(ctx)])
-    queries.append([char_idx[c] for c in q])
-    targets.append(int(t))
-  if pad:
-    return ([pad_sequences(ctxs, MAX_CTX_LEN, padding='post'),
-             pad_sequences(queries, MAX_Q_LEN, padding='post')],
-            np.array(targets))
-  return ([pad_sequences(ctxs, padding='post'),
-           pad_sequences(queries, padding='post')],
-          np.array(targets))
-
-def ask(context, query, model, char_idx):
+def ask(context, query, model):
   """Predict output for given context and query."""
-  x, _ = vectorise_data([(context, query, 0)], char_idx, True)
-  out = model.predict(x)
-  # Decode intermediate outputs
-  if len(out) > 1:
-    for o in out[:-1]:
-      print([IDX_CHAR[i] for i in np.argmax(o[0], axis=1)])
-  return np.asscalar(out[-1])
+  rs = context.split('.')[:-1] # split rules
+  rs = [r + '.' for r in rs]
+  dgen = LogicSeq([(rs, query, 0)], 1, False)
+  out = model.predict_generator(dgen)
+  return np.asscalar(out)
 
-def train(model, model_file, data):
+def train(model, model_file):
   """Train the given model saving weights to model_file."""
   # Setup callbacks
   callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
                ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10, min_lr=0.001, verbose=1),
-               TensorBoard(write_images=True, histogram_freq=4),
                TerminateOnNaN()]
   # Big data machine learning in the cloud
+  traind = LogicSeq.from_file("data/train.txt", 32)
+  testd = LogicSeq.from_file("data/test.txt", 32)
   try:
-    model.fit(data[0], data[1], batch_size=32,
-              epochs=200, callbacks=callbacks,
-              validation_split=0.1)
+    model.fit_generator(traind, epochs=200,
+                        callbacks=callbacks,
+                        validation_data=testd,
+                        shuffle=True)
   finally:
     print("Training terminated.")
     # Dump some examples for debugging
@@ -96,22 +52,14 @@ def train(model, model_file, data):
                ("p(X,X).", "p(a,a)."),
                ("p(X):-q(X).r(a).", "p(a).")]
     for c, q in samples:
-      print("{} ? {} -> {}".format(c, q, ask(c, q, model, CHAR_IDX)))
+      print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
 
 if __name__ == '__main__':
-  # Load the data
-  vdata = vectorise_data(load_data("data/task.txt"), CHAR_IDX)
-  MAX_CTX_LEN = vdata[0][0].shape[1]
-  MAX_Q_LEN = vdata[0][1].shape[1]
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
-                         context_maxlen=MAX_CTX_LEN,
-                         query_maxlen=MAX_Q_LEN,
-                         char_size=len(CHARS)+1)
+                         char_size=len(CHAR_IDX)+1)
   nn_model.summary()
-  print("MAX_CTX_LEN:", MAX_CTX_LEN)
-  print("MAX_Q_LEN:", MAX_Q_LEN)
   if ARGS.debug:
-    print("DEBUG:", ask("p(X):-q(X).q(a).", "p(a).", nn_model, CHAR_IDX))
+    print("DEBUG:", ask("p(X):-q(X).q(a).", "p(a).", nn_model))
   else:
-    train(nn_model, MODEL_FILE, vdata)
+    train(nn_model, MODEL_FILE)

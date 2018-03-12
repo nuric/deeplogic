@@ -8,6 +8,12 @@ VAR_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 PRED_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
 EXTRA_SYMBOLS = ".:-,;()"
 
+CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
+# Reserve 0 for padding
+CHAR_IDX = dict((c, i+1) for i, c in enumerate(CHARS))
+IDX_CHAR = [0]
+IDX_CHAR.extend(CHARS)
+
 # Predicate Templates
 FACT_T = "{}."
 RULE_T = "{}:-{}."

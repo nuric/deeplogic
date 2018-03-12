@@ -10,22 +10,21 @@ ITERATIONS = 1
 
 # pylint: disable=line-too-long
 
-def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
+def build_model(char_size=27):
   """Build the model."""
   # Inputs
-  context = Input(shape=(context_maxlen,), name='context', dtype='int32')
-  query = Input(shape=(query_maxlen,), name='query', dtype='int32')
+  context = Input(shape=(None,), name='context', dtype='int32')
+  query = Input(shape=(None,), name='query', dtype='int32')
 
   # Contextual embeddeding of symbols
   embedded_ctx = Lambda(K.one_hot, arguments={'num_classes':char_size},
-                        output_shape=(context_maxlen, char_size), name='embed_context')(context)
+                        output_shape=(None, char_size), name='embed_context')(context)
   embedded_q = Lambda(K.one_hot, arguments={'num_classes':char_size},
-                      output_shape=(query_maxlen, char_size), name='embed_query')(query)
+                      output_shape=(None, char_size), name='embed_query')(query)
 
   # Reused layers over iterations
   rembed_ctx = Bidirectional(GRU(LATENT_DIM, return_sequences=True), name='re_embed_ctx')
   rembed_q = Bidirectional(GRU(LATENT_DIM, return_sequences=True), name='re_embed_query')
-  read_ctx = GRU(LATENT_DIM, name='read_ctx')
   update_q = Bidirectional(GRU(LATENT_DIM, return_sequences=True), name='update_query')
   decode_q = TimeDistributed(Dense(char_size, activation='softmax'), name='decode_query')
 
@@ -43,10 +42,6 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
     qctx_match = Activation('softmax')(qctx_match)
 
     # Weighted sum using attention
-    attended_query = dot([ctxq_match, rembedded_q], axes=(2, 1)) # (samples, context_maxlen, 2* LATENT_DIM)
-    merged_ctx = concatenate([rembedded_ctx, attended_query], axis=2) # (samples, context_maxlen, 4*LATENT_DIM)
-    merged_ctx = read_ctx(merged_ctx) # (samples, LATENT_DIM)
-    merged_ctx = RepeatVector(query_maxlen)(merged_ctx)
     attended_ctx = dot([qctx_match, rembedded_ctx], axes=(2, 1)) # (samples, query_maxlen, 2*LATENT_DIM)
     merged_q = concatenate([embedded_q, rembedded_q, attended_ctx], axis=2)
     # (samples, query_maxlen, 5*LATENT_DIM)
@@ -56,7 +51,7 @@ def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
     embedded_qq = decode_q(new_q) # (samples, query_maxlen, char_size)
 
   # Predication
-  final_q = Flatten(name='final_query')(embedded_qq)
+  final_q = GRU(LATENT_DIM, name='final_query')(embedded_qq)
   out = Dense(1, activation='sigmoid', use_bias=False, name='out')(final_q)
 
   model = Model([context, query], out)
