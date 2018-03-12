@@ -8,10 +8,11 @@ from data_gen import CHAR_IDX
 
 class LogicSeq(Sequence):
   """Sequence generator for G-Research data."""
-  def __init__(self, data, batch_size, train=True):
+  def __init__(self, data, batch_size, train=True, shuffle=True):
     self.data = data or list()
     self.batch_size = batch_size
     self.train = train
+    self.shuffle = shuffle
 
   def __len__(self):
     return int(np.ceil(len(self.data) / self.batch_size))
@@ -21,7 +22,8 @@ class LogicSeq(Sequence):
     # Create batch
     ctxs, queries, targets = list(), list(), list()
     for ctx, q, t in dpoints:
-      np.random.shuffle(ctx)
+      if self.shuffle:
+        np.random.shuffle(ctx)
       ctxs.append([CHAR_IDX[c] for c in ''.join(ctx)])
       queries.append([CHAR_IDX[c] for c in q])
       targets.append(int(t))

@@ -23,7 +23,7 @@ def ask(context, query, model):
   """Predict output for given context and query."""
   rs = context.split('.')[:-1] # split rules
   rs = [r + '.' for r in rs]
-  dgen = LogicSeq([(rs, query, 0)], 1, False)
+  dgen = LogicSeq([(rs, query, 0)], 1, False, False)
   out = model.predict_generator(dgen)
   return np.asscalar(out)
 
