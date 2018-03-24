@@ -17,6 +17,11 @@ class LogicSeq(Sequence):
   def __len__(self):
     return int(np.ceil(len(self.data) / self.batch_size))
 
+  def on_epoch_end(self):
+    """Shuffle data at the end of epoch."""
+    if self.shuffle:
+      np.random.shuffle(self.data)
+
   def __getitem__(self, idx):
     dpoints = self.data[idx*self.batch_size:(idx+1)*self.batch_size]
     # Create batch
@@ -24,11 +29,29 @@ class LogicSeq(Sequence):
     for ctx, q, t in dpoints:
       if self.shuffle:
         np.random.shuffle(ctx)
-      ctxs.append([CHAR_IDX[c] for c in ''.join(ctx)])
+      rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
+               for r in ctx]
+      rules = [[[CHAR_IDX[c] for c in pred]
+                for pred in r]
+               for r in rules]
+      ctxs.append(rules)
       queries.append([CHAR_IDX[c] for c in q])
       targets.append(int(t))
-    xs = [pad_sequences(ctxs, padding='post'),
-          pad_sequences(queries, padding='post')]
+    vctxs = np.zeros((len(dpoints),
+                      max([len(rs) for rs in ctxs]),
+                      max([len(ps) for rs in ctxs for ps in rs]),
+                      max([len(cs) for rs in ctxs for ps in rs for cs in ps])),
+                      dtype='int')
+    # Contexts
+    for i in range(len(dpoints)):
+      # Rules in context (ie program)
+      for j in range(len(ctxs[i])):
+        # Predicates in rules
+        for k in range(len(ctxs[i][j])):
+          # Chars in predicates
+          for l in range(len(ctxs[i][j][k])):
+            vctxs[i, j, k, l] = ctxs[i][j][k][l]
+    xs = [vctxs, pad_sequences(queries, padding='post')]
     if self.train:
       return xs, np.array(targets)
     return xs

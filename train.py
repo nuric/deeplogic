@@ -22,16 +22,19 @@ np.set_printoptions(suppress=True)
 def ask(context, query, model):
   """Predict output for given context and query."""
   rs = context.split('.')[:-1] # split rules
-  rs = [r + '.' for r in rs]
-  dgen = LogicSeq([(rs, query, 0)], 1, False, False)
+  rr = [r + '.' for r in rs]
+  dgen = LogicSeq([(rr, query, 0)], 1, False, False)
+  # print(dgen[0])
   out = model.predict_generator(dgen)
-  return np.asscalar(out)
+  # print("SHAPES:", [o.shape for o in out])
+  return out
+  # return np.asscalar(out)
 
 def train(model, model_file):
   """Train the given model saving weights to model_file."""
   # Setup callbacks
   callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
-               ReduceLROnPlateau(monitor='loss', factor=0.8, patience=10, min_lr=0.001, verbose=1),
+               ReduceLROnPlateau(monitor='loss', factor=0.8, patience=4, min_lr=0.001, verbose=1),
                TerminateOnNaN()]
   # Big data machine learning in the cloud
   traind = LogicSeq.from_file("data/train.txt", 32)
@@ -57,9 +60,10 @@ def train(model, model_file):
 if __name__ == '__main__':
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
-                         char_size=len(CHAR_IDX)+1)
+                         char_size=len(CHAR_IDX)+1,
+                         training=not ARGS.debug)
   nn_model.summary()
   if ARGS.debug:
-    print("DEBUG:", ask("p(X):-q(X).q(a).", "p(a).", nn_model))
+    print("DEBUG:", ask("q(b).p(a).", "p(a).", nn_model))
   else:
     train(nn_model, MODEL_FILE)
