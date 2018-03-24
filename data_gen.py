@@ -76,21 +76,25 @@ def gen_task1(ctx_size):
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   # Create context with both single and double arguments
-  ctx, div = list(), ctx_size//2
-  for i in range(div):
-    args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+  ctx = list()
+  for i in range(ctx_size):
+    if R.random() < 0.5:
+      args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+    else:
+      args = [R.choice(consts[:-1])]
     ctx.append([(preds[i], args)])
-  for i in range(div, ctx_size):
-    ctx.append([(preds[i], [R.choice(consts[:-1])])])
   # Successful case when query appears in context
-  targets = [(ctx[0][0], 1), (ctx[div][0], 1)]
+  targets = [(ctx[0][0], 1)]
+  # What are possible failures
+  fails = list()
   # Out of context constant fails
-  if R.random() < 0.5:
-    targets.append(((R.choice(preds[:ctx_size//2]), [R.choice(consts), consts[-1]]), 0))
-  else:
-    targets.append(((R.choice(preds[div:-1]), [consts[-1]]), 0))
+  pred = R.choice(ctx)[0]
+  args = pred[1].copy()
+  args[R.randrange(len(args))] = consts[-1]
+  fails.append(((pred[0], args), 0))
   # Out of context predicate fails
-  targets.append(((preds[-1], [R.choice(consts[:-1])]), 0))
+  fails.append(((preds[-1], [R.choice(consts[:-1])]), 0))
+  targets.append(R.choice(fails))
   output(ctx, targets)
 
 def gen_task2(ctx_size):
