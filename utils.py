@@ -73,6 +73,6 @@ class LogicSeq(Sequence):
             ctx = list()
             isnew_ctx = False
           ctx.append(l)
-    print("Example data point from:", fname)
-    print(dpoints[0])
+    print("Example data points from:", fname)
+    print(dpoints[:4])
     return cls(dpoints, batch_size)
