@@ -102,33 +102,54 @@ def gen_task2(ctx_size):
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
   var = r_vars(ctx_size)
-  ctx, div = list(), ctx_size//4
-  # Double variable same argument
-  for i in range(div):
-    v = R.choice(var)
-    ctx.append([(preds[i], [v, v])])
-  # Double variable unique argument
-  for i in range(div, div*2):
-    args = R.sample(var, 2)
-    ctx.append([(preds[i], args)])
-  # Single variable argument
-  for i in range(div*2, div*3):
-    ctx.append([(preds[i], [R.choice(var)])])
-  # Some ground instances
-  for i in range(div*3, ctx_size):
-    ctx.append([(preds[i], [R.choice(consts)])])
-  targets = list()
-  # Successful double variable grounding
-  p = ctx[div][0][0]
-  targets.append(((p, [R.choice(consts), R.choice(consts)]), 1))
-  # Successful single variable grounding
-  p = ctx[div*2][0][0]
-  targets.append(((p, [R.choice(consts)]), 1))
-  # Fail on non-unique variable grounding
-  p = ctx[0][0][0]
-  targets.append(((p, R.sample(consts, 2)), 0))
-  # Out of context predicate fails
-  targets.append(((preds[-1], [R.choice(consts[:-1])]), 0))
+  ctx, targets = list(), list()
+  for i in range(ctx_size):
+    rtype = R.randrange(4)
+    if rtype == 0:
+      # Double variable same argument
+      v = R.choice(var)
+      ctx.append([(preds[i], [v, v])])
+      if i == 0:
+        # Successful double variable grounding
+        c = R.choice(consts)
+        targets.append(((preds[i], [c, c]), 1))
+        # Fail on non-unique variable grounding
+        targets.append(((preds[i], R.sample(consts, 2)), 0))
+    elif rtype == 1:
+      # Double variable unique argument
+      args = R.sample(var, 2)
+      ctx.append([(preds[i], args)])
+      if i == 0:
+        # Successful unique argument grounding
+        args = [R.choice(consts), R.choice(consts)]
+        targets.append(((preds[i], args), 1))
+        # Fail on out of context predicate with same arguments
+        targets.append(((preds[-1], args), 0))
+    elif rtype == 2:
+      # Single variable argument
+      ctx.append([(preds[i], [R.choice(var)])])
+      if i == 0:
+        # Successful argument grounding
+        args = [R.choice(consts)]
+        targets.append(((preds[i], args), 1))
+        # Fail on out of context predicate
+        targets.append(((preds[-1], args), 0))
+    else:
+      # Some ground instances
+      if R.random() < 0.5:
+        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+      else:
+        args = [R.choice(consts[:-1])]
+      pred = (preds[i], args)
+      ctx.append([pred])
+      if i == 0:
+        # This is same as task 1 (?)
+        # Successful ground case
+        targets.append((pred, 1))
+        # Fail on different constants
+        args = pred[1].copy()
+        args[R.randrange(len(args))] = consts[-1]
+        targets.append(((pred[0], args), 0))
   output(ctx, targets)
 
 def gen_task3(ctx_size):
