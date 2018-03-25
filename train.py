@@ -57,6 +57,13 @@ def train(model, model_file):
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
 
+def debug(model):
+  """Run a single data point for debugging."""
+  ctx = "q(a).p(X,Y):-q(Y)."
+  q = "p(a,b)."
+  print("CTX:", ctx)
+  print("Q:", q)
+  print("OUT:", ask(ctx, q, model))
 if __name__ == '__main__':
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
@@ -64,6 +71,6 @@ if __name__ == '__main__':
                          training=not ARGS.debug)
   nn_model.summary()
   if ARGS.debug:
-    print("DEBUG:", ask("q(b).p(a).", "p(a).", nn_model))
+    debug(nn_model)
   else:
     train(nn_model, MODEL_FILE)
