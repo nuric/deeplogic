@@ -7,7 +7,7 @@ PRED_DIM = 50
 RULE_DIM = 75
 STATE_DIM = 100
 ATT_LATENT_DIM = 50
-ITERATIONS = 1
+ITERATIONS = 3
 
 # pylint: disable=line-too-long
 
@@ -64,7 +64,8 @@ def build_model(char_size=27, training=True):
   # Reasoning iterations
   state = L.Dense(STATE_DIM, activation='tanh', name='init_state')(embedded_predq)
   ctx_rules = rule_to_att(embedded_rules) # (?, rules, ATT_LATENT_DIM)
-  for _ in range(ITERATIONS):
+  outs = list()
+  for i in range(ITERATIONS):
     # Compute attention between rule and query state
     att_state = state_to_att(state) # (?, ATT_LATENT_DIM)
     att_state = repeat_toctx(att_state) # (?, rules, ATT_LATENT_DIM)
@@ -72,6 +73,7 @@ def build_model(char_size=27, training=True):
     sim_vec = att_dense(sim_vec) # (?, rules, 1)
     sim_vec = squeeze2(sim_vec) # (?, rules)
     sim_vec = L.Softmax(axis=1)(sim_vec)
+    outs.append(sim_vec)
 
     # Unify every rule and weighted sum based on attention
     new_states = unifier(embedded_ctx_preds, initial_state=[state])
@@ -81,6 +83,7 @@ def build_model(char_size=27, training=True):
     s_s_ns = L.subtract([state, new_state])
     gate = L.concatenate([state, new_state, s_m_ns, s_s_ns])
     gate = gating(gate)
+    outs.append(gate)
     new_state = gate2([state, new_state, gate])
     state = new_state
 
@@ -92,5 +95,5 @@ def build_model(char_size=27, training=True):
                   optimizer='rmsprop',
                   metrics=['acc'])
   else:
-    model = Model([context, query], [sim_vec, out])
+    model = Model([context, query], outs + [out])
   return model

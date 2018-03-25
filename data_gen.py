@@ -154,29 +154,63 @@ def gen_task2(ctx_size):
 
 def gen_task3(ctx_size):
   """Single step deduction: p(X):-q(X)."""
-  preds = r_preds(ctx_size+1)
-  consts = r_consts(ctx_size+1)
+  preds = r_preds(ctx_size*2+1)
+  consts = r_consts(ctx_size*2)
   var = r_vars(ctx_size)
-  ctx, div = list(), ctx_size//2
-  # Variable deduction rules
-  for i in range(div):
-    v = R.choice(var)
-    ctx.append([(preds[i*2], [v]), (preds[i*2+1], [v])])
-  # Ground instances
-  for i in range(div):
-    ctx.append([(preds[i*2+1], [consts[i]])])
-  targets = list()
-  # Successful deduction
-  p = ctx[0][0][0]
-  targets.append(((p, [consts[0]]), 1))
-  p = ctx[1][0][0]
-  targets.append(((p, [consts[1]]), 1))
-  # Fail on unknown const deduction
-  p = ctx[div-1][0][0]
-  targets.append(((p, [R.choice(consts[div:])]), 0))
-  # Fail on unsatisfied premise
-  p = ctx[1][0][0]
-  targets.append(((p, [R.choice(consts[div:])]), 0))
+  ctx, targets = list(), list()
+  i, pidx = 0, 0
+  while i < ctx_size:
+    rtype = R.randrange(3 if i == 0 else 4)
+    if rtype == 0:
+      # Double variable swap deduction rules
+      vs = R.sample(var, 2)
+      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs[::-1])])
+      if i == 0:
+        args = R.sample(consts[:-1], 2)
+        # Add the ground case
+        ctx.append([(preds[pidx+1], args[::-1])])
+        i += 1
+        targets.append(((preds[pidx], args), 1))
+        targets.append(((preds[pidx], args[::-1]), 0))
+      pidx += 2
+    elif rtype == 1:
+      # Double variable non-swap deduction rules
+      vs = R.sample(var, 2)
+      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
+      if i == 0:
+        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+        # Add the ground case
+        ctx.append([(preds[pidx+1], args)])
+        i += 1
+        targets.append(((preds[pidx], args), 1))
+        # Fail on either missing premise or constant
+        if R.random() < 0.5:
+          targets.append(((preds[-1], args), 0))
+        else:
+          args = args.copy()
+          args[R.randrange(len(args))] = consts[-1]
+          targets.append(((preds[pidx], args), 0))
+      pidx += 2
+    elif rtype == 2:
+      # Single variable deduction rules
+      v = R.choice(var)
+      ctx.append([(preds[pidx], [v]), (preds[pidx+1], [v])])
+      if i == 0:
+        c = R.choice(consts[:-1])
+        ctx.append([(preds[pidx+1], [c])])
+        i += 1
+        targets.append(((preds[pidx], [c]), 1))
+        # Fail on either missing premise or constant
+        if R.random() < 0.5:
+          targets.append(((preds[-1], [c]), 0))
+        else:
+          targets.append(((preds[pidx], [consts[-1]]), 0))
+      pidx += 2
+    else:
+      # Ground instances
+      ctx.append([(preds[pidx], [R.choice(consts[:-1])])])
+      pidx += 1
+    i += 1
   output(ctx, targets)
 
 def gen_task4(ctx_size):
