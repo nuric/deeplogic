@@ -154,11 +154,11 @@ def gen_task2(ctx_size):
         targets.append(((pred[0], args), 0))
   output(ctx, targets)
 
-def gen_task3(ctx_size):
-  """Single step deduction: p(X):-q(X)."""
-  assert ctx_size >= 2
-  preds = r_preds(ctx_size*2+1)
-  consts = r_consts(ctx_size*2)
+def nstep_deduction(ctx_size, steps):
+  assert steps >= 1
+  assert ctx_size >= (steps + 1)
+  preds = r_preds(ctx_size*2+steps)
+  consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
   ctx, targets = list(), list()
   i, pidx = 0, 0
@@ -169,22 +169,31 @@ def gen_task3(ctx_size):
       vs = R.sample(var, 2)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs[::-1])])
       if i == 0:
-        args = R.sample(consts[:-1], 2)
+        # Add the n steps
+        for j in range(steps-1):
+          vs = R.sample(var, 2)
+          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs[::-1])])
         # Add the ground case
-        ctx.append([(preds[pidx+1], args[::-1])])
-        i += 1
+        args = R.sample(consts[:-1], 2)
+        ctx.append([(preds[pidx+steps], args)])
+        i += steps
         targets.append(((preds[pidx], args), 1))
         targets.append(((preds[pidx], args[::-1]), 0))
+        pidx += steps-1
       pidx += 2
     elif rtype == 1:
       # Double variable non-swap deduction rules
       vs = R.sample(var, 2)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
       if i == 0:
+        # Add the n steps
+        for j in range(steps-1):
+          vs = R.sample(var, 2)
+          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs)])
         args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
         # Add the ground case
-        ctx.append([(preds[pidx+1], args)])
-        i += 1
+        ctx.append([(preds[pidx+steps], args)])
+        i += steps
         targets.append(((preds[pidx], args), 1))
         # Fail on either missing premise or constant
         if R.random() < 0.5:
@@ -193,21 +202,28 @@ def gen_task3(ctx_size):
           args = args.copy()
           args[R.randrange(len(args))] = consts[-1]
           targets.append(((preds[pidx], args), 0))
+        pidx += steps-1
       pidx += 2
     elif rtype == 2:
       # Single variable deduction rules
       v = R.choice(var)
       ctx.append([(preds[pidx], [v]), (preds[pidx+1], [v])])
       if i == 0:
+        # Add the n steps
+        for j in range(steps-1):
+          v = R.choice(var)
+          ctx.append([(preds[pidx+j+1], [v]), (preds[pidx+j+2], [v])])
+        # Add the ground case
         c = R.choice(consts[:-1])
-        ctx.append([(preds[pidx+1], [c])])
-        i += 1
+        ctx.append([(preds[pidx+steps], [c])])
+        i += steps
         targets.append(((preds[pidx], [c]), 1))
         # Fail on either missing premise or constant
         if R.random() < 0.5:
           targets.append(((preds[-1], [c]), 0))
         else:
           targets.append(((preds[pidx], [consts[-1]]), 0))
+        pidx += steps-1
       pidx += 2
     else:
       # Ground instances
@@ -215,83 +231,20 @@ def gen_task3(ctx_size):
       pidx += 1
     i += 1
   output(ctx, targets)
+
+def gen_task3(ctx_size):
+  """Single step deduction: p(X):-q(X)."""
+  nstep_deduction(ctx_size, 1)
 
 def gen_task4(ctx_size):
   """Double step deduction: p(X):-q(X).q(X):-r(X)."""
-  assert ctx_size >= 3
-  preds = r_preds(ctx_size*2+2)
-  consts = r_consts(ctx_size*2)
-  var = r_vars(ctx_size)
-  ctx, targets = list(), list()
-  i, pidx = 0, 0
-  while i < ctx_size:
-    rtype = R.randrange(3 if i == 0 else 4)
-    if rtype == 0:
-      # Double variable swap deduction rules
-      vs = R.sample(var, 2)
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs[::-1])])
-      if i == 0:
-        # Add the second step
-        vs = R.sample(var, 2)
-        ctx.append([(preds[pidx+1], vs), (preds[pidx+2], vs[::-1])])
-        # Add the ground case
-        args = R.sample(consts[:-1], 2)
-        ctx.append([(preds[pidx+2], args)])
-        i += 2
-        targets.append(((preds[pidx], args), 1))
-        targets.append(((preds[pidx], args[::-1]), 0))
-        pidx += 1
-      pidx += 2
-    elif rtype == 1:
-      # Double variable non-swap deduction rules
-      vs = R.sample(var, 2)
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
-      if i == 0:
-        # Add the second step
-        vs = R.sample(var, 2)
-        ctx.append([(preds[pidx+1], vs), (preds[pidx+2], vs)])
-        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
-        # Add the ground case
-        ctx.append([(preds[pidx+2], args)])
-        i += 2
-        targets.append(((preds[pidx], args), 1))
-        # Fail on either missing premise or constant
-        if R.random() < 0.5:
-          targets.append(((preds[-1], args), 0))
-        else:
-          args = args.copy()
-          args[R.randrange(len(args))] = consts[-1]
-          targets.append(((preds[pidx], args), 0))
-        pidx += 1
-      pidx += 2
-    elif rtype == 2:
-      # Single variable deduction rules
-      v = R.choice(var)
-      ctx.append([(preds[pidx], [v]), (preds[pidx+1], [v])])
-      if i == 0:
-        # Add the second step
-        v = R.choice(var)
-        ctx.append([(preds[pidx+1], [v]), (preds[pidx+2], [v])])
-        # Add the ground case
-        c = R.choice(consts[:-1])
-        ctx.append([(preds[pidx+2], [c])])
-        i += 2
-        targets.append(((preds[pidx], [c]), 1))
-        # Fail on either missing premise or constant
-        if R.random() < 0.5:
-          targets.append(((preds[-1], [c]), 0))
-        else:
-          targets.append(((preds[pidx], [consts[-1]]), 0))
-        pidx += 1
-      pidx += 2
-    else:
-      # Ground instances
-      ctx.append([(preds[pidx], [R.choice(consts[:-1])])])
-      pidx += 1
-    i += 1
-  output(ctx, targets)
+  nstep_deduction(ctx_size, 2)
 
 def gen_task5(ctx_size):
+  """Triple step deduction."""
+  nstep_deduction(ctx_size, 3)
+
+def gen_task6(ctx_size):
   """Transitive case: p(X,Y):-q(X,Z);R(Z,Y)."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)
