@@ -260,7 +260,7 @@ def gen_task6(ctx_size):
                   (preds[pidx+2], vs[1:])])
       if i == 0:
         # Add the ground cases
-        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+        args = choices(consts[:-1], 2)
         ctx.append([(preds[pidx+1], args[:1])])
         ctx.append([(preds[pidx+2], args[1:])])
         i += 2
@@ -327,6 +327,44 @@ def gen_task7(ctx_size):
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
         targets.append(((preds[pidx], args), 0))
+      pidx += 3
+    else:
+      # Some other ground cases
+      k = 2 if R.random() < 0.5 else 1
+      ctx.append([(preds[pidx], choices(consts, k))])
+      pidx += 1
+    i += 1
+  output(ctx, targets)
+
+def gen_task8(ctx_size):
+  """Logical OR: p(X):-q(X).p(X):-r(X)."""
+  assert ctx_size >= 3
+  preds = r_preds(ctx_size*3+1)
+  consts = r_consts(ctx_size+2)
+  var = r_vars(ctx_size)
+  ctx, targets = list(), list()
+  i, pidx = 0, 0
+  while i < ctx_size:
+    rtype = R.randrange(2 if i == 0 else 3)
+    if rtype == 0 or rtype == 1:
+      # Double or single variable OR
+      argc = rtype + 1
+      vs = R.sample(var, argc)
+      swap = R.random() < 0.5
+      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs if swap else vs[::-1])])
+      ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
+      if i == 0:
+        # Add one ground case
+        args = choices(consts[:-1], argc)
+        ctx.append([(preds[pidx+1], args if swap else args[::-1])])
+        i += 1
+        # Successful case
+        targets.append(((preds[pidx], args), 1))
+        # Fail on non-matching constant
+        args = args.copy()
+        args[R.randrange(len(args))] = consts[-1]
+        targets.append(((preds[pidx], args), 0))
+      i += 1
       pidx += 3
     else:
       # Some other ground cases
