@@ -83,23 +83,20 @@ def gen_task1(ctx_size):
   # Create context with both single and double arguments
   ctx = list()
   for i in range(ctx_size):
-    if R.random() < 0.5:
-      args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
-    else:
-      args = [R.choice(consts[:-1])]
-    ctx.append([(preds[i], args)])
+    k = 2 if R.random() < 0.5 else 1
+    ctx.append([(preds[i], choices(consts[:-1], k))])
   # Successful case when query appears in context
   targets = [(ctx[0][0], 1)]
   # What are possible failures
-  fails = list()
-  # Out of context constant fails
-  pred = R.choice(ctx)[0]
-  args = pred[1].copy()
-  args[R.randrange(len(args))] = consts[-1]
-  fails.append(((pred[0], args), 0))
-  # Out of context predicate fails
-  fails.append(((preds[-1], [R.choice(consts[:-1])]), 0))
-  targets.append(R.choice(fails))
+  if R.random() < 0.5:
+    # Out of context constant fails
+    pred = R.choice(ctx)[0]
+    args = pred[1].copy()
+    args[R.randrange(len(args))] = consts[-1]
+    targets.append(((pred[0], args), 0))
+  else:
+    # Out of context predicate fails
+    targets.append(((preds[-1], choices(consts[:-1], 1)), 0))
   output(ctx, targets)
 
 def gen_task2(ctx_size):
@@ -127,26 +124,23 @@ def gen_task2(ctx_size):
       ctx.append([(preds[i], args)])
       if i == 0:
         # Successful unique argument grounding
-        args = [R.choice(consts), R.choice(consts)]
+        args = choices(consts, 2)
         targets.append(((preds[i], args), 1))
         # Fail on out of context predicate with same arguments
         targets.append(((preds[-1], args), 0))
     elif rtype == 2:
       # Single variable argument
-      ctx.append([(preds[i], [R.choice(var)])])
+      ctx.append([(preds[i], choices(var, 1))])
       if i == 0:
         # Successful argument grounding
-        args = [R.choice(consts)]
+        args = choices(consts, 1)
         targets.append(((preds[i], args), 1))
         # Fail on out of context predicate
         targets.append(((preds[-1], args), 0))
     else:
       # Some ground instances
-      if R.random() < 0.5:
-        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
-      else:
-        args = [R.choice(consts[:-1])]
-      pred = (preds[i], args)
+      k = 2 if R.random() < 0.5 else 1
+      pred = (preds[i], choices(consts[:-1], k))
       ctx.append([pred])
       if i == 0:
         # This is same as task 1 (?)
@@ -194,7 +188,7 @@ def nstep_deduction(ctx_size, steps):
         for j in range(steps-1):
           vs = R.sample(var, 2)
           ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs)])
-        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+        args = choices(consts[:-1], 2)
         # Add the ground case
         ctx.append([(preds[pidx+steps], args)])
         i += steps
@@ -294,11 +288,8 @@ def gen_task6(ctx_size):
       pidx += 3
     else:
       # Some other ground cases
-      if R.random() < 0.5:
-        args = [R.choice(consts), R.choice(consts)]
-      else:
-        args = [R.choice(consts)]
-      ctx.append([(preds[pidx], args)])
+      k = 2 if R.random() < 0.5 else 1
+      ctx.append([(preds[pidx], choices(consts, k))])
       pidx += 1
     i += 1
   output(ctx, targets)
@@ -339,11 +330,8 @@ def gen_task7(ctx_size):
       pidx += 3
     else:
       # Some other ground cases
-      if R.random() < 0.5:
-        args = choices(consts, 2)
-      else:
-        args = choices(consts, 1)
-      ctx.append([(preds[pidx], args)])
+      k = 2 if R.random() < 0.5 else 1
+      ctx.append([(preds[pidx], choices(consts, k))])
       pidx += 1
     i += 1
   output(ctx, targets)
