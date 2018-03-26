@@ -107,7 +107,7 @@ def gen_task2(ctx_size):
   var = r_vars(ctx_size)
   ctx, targets = list(), list()
   for i in range(ctx_size):
-    rtype = R.randrange(4)
+    rtype = R.randrange(3 if i == 0 else 4)
     if rtype == 0:
       # Double variable same argument
       v = R.choice(var)
@@ -142,14 +142,6 @@ def gen_task2(ctx_size):
       k = 2 if R.random() < 0.5 else 1
       pred = (preds[i], choices(consts[:-1], k))
       ctx.append([pred])
-      if i == 0:
-        # This is same as task 1 (?)
-        # Successful ground case
-        targets.append((pred, 1))
-        # Fail on different constants
-        args = pred[1].copy()
-        args[R.randrange(len(args))] = consts[-1]
-        targets.append(((pred[0], args), 0))
   output(ctx, targets)
 
 def nstep_deduction(ctx_size, steps):
@@ -179,22 +171,24 @@ def nstep_deduction(ctx_size, steps):
         targets.append(((preds[pidx], args[::-1]), 0))
         pidx += steps-1
       pidx += 2
-    elif rtype == 1:
+    elif rtype == 1 or rtype == 2:
       # Double variable non-swap deduction rules
-      vs = R.sample(var, 2)
+      # Single variable deduction rules
+      argc = rtype
+      vs = R.sample(var, argc)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
       if i == 0:
         # Add the n steps
         for j in range(steps-1):
-          vs = R.sample(var, 2)
+          vs = R.sample(var, argc)
           ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs)])
-        args = choices(consts[:-1], 2)
+        args = choices(consts[:-1], argc)
         # Add the ground case
         ctx.append([(preds[pidx+steps], args)])
         i += steps
         targets.append(((preds[pidx], args), 1))
         # Fail on either missing premise or constant
-        if R.random() < 0.5:
+        if R.random() < 0.3:
           targets.append(((preds[-1], args), 0))
         else:
           args = args.copy()
@@ -202,30 +196,9 @@ def nstep_deduction(ctx_size, steps):
           targets.append(((preds[pidx], args), 0))
         pidx += steps-1
       pidx += 2
-    elif rtype == 2:
-      # Single variable deduction rules
-      v = R.choice(var)
-      ctx.append([(preds[pidx], [v]), (preds[pidx+1], [v])])
-      if i == 0:
-        # Add the n steps
-        for j in range(steps-1):
-          v = R.choice(var)
-          ctx.append([(preds[pidx+j+1], [v]), (preds[pidx+j+2], [v])])
-        # Add the ground case
-        c = R.choice(consts[:-1])
-        ctx.append([(preds[pidx+steps], [c])])
-        i += steps
-        targets.append(((preds[pidx], [c]), 1))
-        # Fail on either missing premise or constant
-        if R.random() < 0.5:
-          targets.append(((preds[-1], [c]), 0))
-        else:
-          targets.append(((preds[pidx], [consts[-1]]), 0))
-        pidx += steps-1
-      pidx += 2
     else:
       # Ground instances
-      ctx.append([(preds[pidx], [R.choice(consts[:-1])])])
+      ctx.append([(preds[pidx], choices(consts, 1))])
       pidx += 1
     i += 1
   output(ctx, targets)
@@ -252,17 +225,19 @@ def gen_task6(ctx_size):
   i, pidx = 0, 0
   while i < ctx_size:
     rtype = R.randrange(2 if i == 0 else 3)
-    if rtype == 0:
+    if rtype == 0 or rtype == 1:
+      argc = rtype + 1
       # Double variable AND with different vars
-      vs = R.sample(var, 2)
+      # Single variable AND
+      vs = R.sample(var, argc)
       ctx.append([(preds[pidx], vs),
                   (preds[pidx+1], vs[:1]),
-                  (preds[pidx+2], vs[1:])])
+                  (preds[pidx+2], vs[1:] or vs)])
       if i == 0:
         # Add the ground cases
-        args = choices(consts[:-1], 2)
+        args = choices(consts[:-1], argc)
         ctx.append([(preds[pidx+1], args[:1])])
-        ctx.append([(preds[pidx+2], args[1:])])
+        ctx.append([(preds[pidx+2], args[1:] or args)])
         i += 2
         # Successful case
         targets.append(((preds[pidx], args), 1))
@@ -270,21 +245,6 @@ def gen_task6(ctx_size):
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
         targets.append(((preds[pidx], args), 0))
-      pidx += 3
-    elif rtype == 1:
-      # Single variable AND
-      v = R.choice(var)
-      ctx.append([(preds[pidx], [v]),
-                  (preds[pidx+1], [v]),
-                  (preds[pidx+2], [v])])
-      if i == 0:
-        # Add the ground cases
-        c = R.choice(consts[:-1])
-        ctx.append([(preds[pidx+1], [c])])
-        ctx.append([(preds[pidx+2], [c])])
-        i += 2
-        targets.append(((preds[pidx], [c]), 1))
-        targets.append(((preds[pidx], [consts[-1]]), 0))
       pidx += 3
     else:
       # Some other ground cases
