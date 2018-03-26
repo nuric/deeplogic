@@ -245,6 +245,61 @@ def gen_task5(ctx_size):
   nstep_deduction(ctx_size, 3)
 
 def gen_task6(ctx_size):
+  """Logical AND: p(X):-q(X);r(X)."""
+  assert ctx_size >= 3
+  preds = r_preds(ctx_size*3+1)
+  consts = r_consts(ctx_size+2)
+  var = r_vars(ctx_size)
+  ctx, targets = list(), list()
+  i, pidx = 0, 0
+  while i < ctx_size:
+    rtype = R.randrange(2 if i == 0 else 3)
+    if rtype == 0:
+      # Double variable AND with different vars
+      vs = R.sample(var, 2)
+      ctx.append([(preds[pidx], vs),
+                  (preds[pidx+1], vs[:1]),
+                  (preds[pidx+2], vs[1:])])
+      if i == 0:
+        # Add the ground cases
+        args = [R.choice(consts[:-1]), R.choice(consts[:-1])]
+        ctx.append([(preds[pidx+1], args[:1])])
+        ctx.append([(preds[pidx+2], args[1:])])
+        i += 2
+        # Successful case
+        targets.append(((preds[pidx], args), 1))
+        # Fail on non-matching constant
+        args = args.copy()
+        args[R.randrange(len(args))] = consts[-1]
+        targets.append(((preds[pidx], args), 0))
+      pidx += 3
+    elif rtype == 1:
+      # Single variable AND
+      v = R.choice(var)
+      ctx.append([(preds[pidx], [v]),
+                  (preds[pidx+1], [v]),
+                  (preds[pidx+2], [v])])
+      if i == 0:
+        # Add the ground cases
+        c = R.choice(consts[:-1])
+        ctx.append([(preds[pidx+1], [c])])
+        ctx.append([(preds[pidx+2], [c])])
+        i += 2
+        targets.append(((preds[pidx], [c]), 1))
+        targets.append(((preds[pidx], [consts[-1]]), 0))
+      pidx += 3
+    else:
+      # Some other ground cases
+      if R.random() < 0.5:
+        args = [R.choice(consts), R.choice(consts)]
+      else:
+        args = [R.choice(consts)]
+      ctx.append([(preds[pidx], args)])
+      pidx += 1
+    i += 1
+  output(ctx, targets)
+
+def gen_task7(ctx_size):
   """Transitive case: p(X,Y):-q(X,Z);R(Z,Y)."""
   preds = r_preds(ctx_size+1)
   consts = r_consts(ctx_size+1)

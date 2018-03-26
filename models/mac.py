@@ -65,7 +65,7 @@ def build_model(char_size=27, training=True):
   state = L.Dense(STATE_DIM, activation='tanh', name='init_state')(embedded_predq)
   ctx_rules = rule_to_att(embedded_rules) # (?, rules, ATT_LATENT_DIM)
   outs = list()
-  for i in range(ITERATIONS):
+  for _ in range(ITERATIONS):
     # Compute attention between rule and query state
     att_state = state_to_att(state) # (?, ATT_LATENT_DIM)
     att_state = repeat_toctx(att_state) # (?, rules, ATT_LATENT_DIM)
