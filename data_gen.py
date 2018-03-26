@@ -22,6 +22,10 @@ ARG_SEP = ','
 PRED_SEP = ';'
 TARGET_T = "? {} {}"
 
+def choices(symbols, k):
+  """Return k many symbols with replacement. Added in v3.6."""
+  return [R.choice(symbols) for _ in range(k)]
+
 def r_string(symbols, length):
   """Return random sequence from given symbols."""
   return ''.join(R.choice(symbols)
@@ -300,32 +304,48 @@ def gen_task6(ctx_size):
   output(ctx, targets)
 
 def gen_task7(ctx_size):
-  """Transitive case: p(X,Y):-q(X,Z);R(Z,Y)."""
-  preds = r_preds(ctx_size+1)
-  consts = r_consts(ctx_size+1)
+  """Transitive case: p(X,Y):-q(X,Z);r(Z,Y)."""
+  assert ctx_size >= 4
+  preds = r_preds(ctx_size*3+1)
+  consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
-  ctx, div = list(), ctx_size//3
-  # Transitive rules
-  for i in range(div):
-    vs = R.sample(var, 3)
-    r = [(preds[i*3], [vs[0], vs[2]]),
-         (preds[i*3+1], [vs[0], vs[1]]),
-         (preds[i*3+2], [vs[1], vs[2]])]
-    ctx.append(r)
-  # Ground instances to satisfy deduction
-  for i in range(div//2):
-    ctx.append([(preds[i*3+1], [consts[i*2], consts[i*2+1]])])
-    ctx.append([(preds[i*3+2], [consts[i*2+1], consts[i*2+2]])])
-  for i in range(div//2, div):
-    ctx.append([(preds[i*3+1], [consts[i*2], consts[i*2+1]])])
-    ctx.append([(preds[i*3+2], [consts[-1], consts[i*2+2]])])
-  targets = list()
-  # Successful deduction
-  p = ctx[0][0][0]
-  targets.append(((p, [consts[0], consts[2]]), 1))
-  # Fail on non-matching premise
-  p = ctx[div//2][0][0]
-  targets.append(((p, [consts[div], consts[div+2]]), 0))
+  ctx, targets = list(), list()
+  i, pidx = 0, 0
+  while i < ctx_size:
+    rtype = R.randrange(1 if i == 0 else 2)
+    if rtype == 0:
+      # Existential variable with single choice
+      vs = R.sample(var, 3)
+      ctx.append([(preds[pidx], [vs[0], vs[2]]),
+                  (preds[pidx+1], vs[:2]),
+                  (preds[pidx+2], vs[1:])])
+      if i == 0:
+        # Add the ground cases
+        args = choices(consts[:-1], 3)
+        ctx.append([(preds[pidx+1], args[:2])])
+        ctx.append([(preds[pidx+2], args[1:])])
+        if R.random() < 0.5:
+          ctx.append([(preds[pidx+1], [args[0], consts[-1]])])
+        else:
+          ctx.append([(preds[pidx+2], [consts[-1], args[0]])])
+        i += 3
+        # Successful case
+        args = [args[0], args[2]]
+        targets.append(((preds[pidx], args), 1))
+        # Fail on half-matching existential
+        args = args.copy()
+        args[R.randrange(len(args))] = consts[-1]
+        targets.append(((preds[pidx], args), 0))
+      pidx += 3
+    else:
+      # Some other ground cases
+      if R.random() < 0.5:
+        args = choices(consts, 2)
+      else:
+        args = choices(consts, 1)
+      ctx.append([(preds[pidx], args)])
+      pidx += 1
+    i += 1
   output(ctx, targets)
 
 if __name__ == '__main__':
