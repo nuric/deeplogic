@@ -139,7 +139,7 @@ def gen_task2(ctx_size):
 
 def nstep_deduction(ctx_size, steps):
   assert steps >= 1
-  assert ctx_size >= (steps + 1)
+  assert ctx_size >= (steps + 2)
   preds = r_preds(ctx_size*2+steps)
   consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
@@ -180,13 +180,12 @@ def nstep_deduction(ctx_size, steps):
         ctx.append([(preds[pidx+steps], args)])
         i += steps
         targets.append(((preds[pidx], args), 1))
-        # Fail on either missing premise or constant
-        if R.random() < 0.3:
-          targets.append(((preds[-1], args), 0))
-        else:
-          args = args.copy()
-          args[R.randrange(len(args))] = consts[-1]
-          targets.append(((preds[pidx], args), 0))
+        # Fail on non-matching constant
+        args = args.copy()
+        args[R.randrange(len(args))] = consts[-1]
+        ctx.append([(preds[-1], args)]) # Decoy rule
+        i += 1
+        targets.append(((preds[pidx], args), 0))
         pidx += steps-1
       pidx += 2
     else:
