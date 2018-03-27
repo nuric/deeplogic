@@ -107,7 +107,7 @@ def gen_task2(ctx_size):
   var = r_vars(ctx_size)
   ctx, targets = list(), list()
   for i in range(ctx_size):
-    rtype = R.randrange(3 if i == 0 else 4)
+    rtype = R.randrange(2 if i == 0 else 3)
     if rtype == 0:
       # Double variable same argument
       v = R.choice(var)
@@ -119,23 +119,16 @@ def gen_task2(ctx_size):
         # Fail on non-unique variable grounding
         targets.append(((preds[i], R.sample(consts, 2)), 0))
     elif rtype == 1:
-      # Double variable unique argument
-      args = R.sample(var, 2)
+      # Double variable different argument
+      # Single variable argument
+      argc = R.randint(1, 2)
+      args = R.sample(var, argc)
       ctx.append([(preds[i], args)])
       if i == 0:
         # Successful unique argument grounding
-        args = choices(consts, 2)
+        args = choices(consts, argc)
         targets.append(((preds[i], args), 1))
         # Fail on out of context predicate with same arguments
-        targets.append(((preds[-1], args), 0))
-    elif rtype == 2:
-      # Single variable argument
-      ctx.append([(preds[i], choices(var, 1))])
-      if i == 0:
-        # Successful argument grounding
-        args = choices(consts, 1)
-        targets.append(((preds[i], args), 1))
-        # Fail on out of context predicate
         targets.append(((preds[-1], args), 0))
     else:
       # Some ground instances
