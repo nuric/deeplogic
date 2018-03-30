@@ -297,7 +297,7 @@ def gen_task7(ctx_size):
 
 def gen_task8(ctx_size):
   """Transitive case: p(X,Y):-q(X,Z);r(Z,Y)."""
-  assert ctx_size >= 4
+  assert ctx_size >= 5
   preds = r_preds(ctx_size*3+1)
   consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
@@ -312,22 +312,20 @@ def gen_task8(ctx_size):
                   (preds[pidx+1], vs[:2]),
                   (preds[pidx+2], vs[1:])])
       if i == 0:
-        # Add the ground cases
+        # Add matching ground cases
         args = choices(consts[:-1], 3)
         ctx.append([(preds[pidx+1], args[:2])])
         ctx.append([(preds[pidx+2], args[1:])])
-        if R.random() < 0.5:
-          ctx.append([(preds[pidx+1], [args[0], consts[-1]])])
-        else:
-          ctx.append([(preds[pidx+2], [consts[-1], args[0]])])
-        i += 3
+        # Add non-matching ground cases
+        argso = choices(consts[:-1], 3)
+        argso.insert(R.randint(1, 2), consts[-1])
+        ctx.append([(preds[pidx+1], argso[:2])])
+        ctx.append([(preds[pidx+2], argso[2:])])
+        i += 4
         # Successful case
-        args = [args[0], args[2]]
-        targets.append(((preds[pidx], args), 1))
+        targets.append(((preds[pidx], [args[0], args[2]]), 1))
         # Fail on half-matching existential
-        args = args.copy()
-        args[R.randrange(len(args))] = consts[-1]
-        targets.append(((preds[pidx], args), 0))
+        targets.append(((preds[pidx], [argso[0], argso[3]]), 0))
       pidx += 3
     else:
       # Some other ground cases
