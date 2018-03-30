@@ -253,7 +253,7 @@ def gen_task6(ctx_size):
 
 def gen_task7(ctx_size):
   """Logical OR: p(X):-q(X).p(X):-r(X)."""
-  assert ctx_size >= 3
+  assert ctx_size >= 4
   preds = r_preds(ctx_size*3+1)
   consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
@@ -268,19 +268,20 @@ def gen_task7(ctx_size):
       swap = R.random() < 0.5
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs if swap else vs[::-1])])
       if i == 0:
-        # Add one ground case
+        # Add the extra branching rule
+        ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
+        # Add ground cases
         args = choices(consts[:-1], argc)
+        ctx.append([(preds[pidx+1], args if swap else args[::-1])])
+        argso = choices(consts[:-1], argc)
+        ctx.append([(preds[pidx], argso)])
+        i += 3
         if R.random() < 0.5:
-          # Add a shortcut ground case
-          ctx.append([(preds[pidx], args)])
-          i += 1
+          # Shortcut case
+          targets.append(((preds[pidx], argso), 1))
         else:
           # Follow only one of the rules
-          ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
-          ctx.append([(preds[pidx+1], args if swap else args[::-1])])
-          i += 2
-        # Successful case
-        targets.append(((preds[pidx], args), 1))
+          targets.append(((preds[pidx], args), 1))
         # Fail on non-matching constant
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
