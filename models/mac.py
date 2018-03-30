@@ -1,23 +1,88 @@
 """Iterative memory attention model."""
+import numpy as np
 import keras.backend as K
 import keras.layers as L
 from keras.models import Model
 
-PRED_DIM = 50
-RULE_DIM = 75
-STATE_DIM = 100
-ATT_LATENT_DIM = 50
+PRED_DIM = 32
+RULE_DIM = 64
+STATE_DIM = 128
+ATT_LATENT_DIM = 64
 ITERATIONS = 3
 
 # pylint: disable=line-too-long
 
+class ZeroGRUCell(L.GRUCell):
+  """GRU Cell that skips timestep if inputs are all zero."""
+  def call(self, inputs, states, training=None):
+    """Step function of the cell."""
+    h_tm1 = states[0] # previous output
+    cond = K.all(K.equal(inputs, 0), axis=-1)
+    new_output, new_states = super().call(inputs, states, training=training)
+    curr_output = K.switch(cond, h_tm1, new_output)
+    curr_states = [K.switch(cond, states[i], new_states[i]) for i in range(len(states))]
+    return curr_output, curr_states
+
+
+class ZeroGRU(L.GRU):
+  """Layer wrapper for the ZeroGRUCell."""
+  def __init__(self, units,
+               activation='tanh',
+               recurrent_activation='hard_sigmoid',
+               use_bias=True,
+               kernel_initializer='glorot_uniform',
+               recurrent_initializer='orthogonal',
+               bias_initializer='zeros',
+               kernel_regularizer=None,
+               recurrent_regularizer=None,
+               bias_regularizer=None,
+               activity_regularizer=None,
+               kernel_constraint=None,
+               recurrent_constraint=None,
+               bias_constraint=None,
+               dropout=0.,
+               recurrent_dropout=0.,
+               implementation=1,
+               return_sequences=False,
+               return_state=False,
+               go_backwards=False,
+               stateful=False,
+               unroll=False,
+               reset_after=False,
+               **kwargs):
+    cell = ZeroGRUCell(units,
+                       activation=activation,
+                       recurrent_activation=recurrent_activation,
+                       use_bias=use_bias,
+                       kernel_initializer=kernel_initializer,
+                       recurrent_initializer=recurrent_initializer,
+                       bias_initializer=bias_initializer,
+                       kernel_regularizer=kernel_regularizer,
+                       recurrent_regularizer=recurrent_regularizer,
+                       bias_regularizer=bias_regularizer,
+                       kernel_constraint=kernel_constraint,
+                       recurrent_constraint=recurrent_constraint,
+                       bias_constraint=bias_constraint,
+                       dropout=dropout,
+                       recurrent_dropout=recurrent_dropout,
+                       implementation=implementation,
+                       reset_after=reset_after)
+    super(L.GRU, self).__init__(cell,
+                                return_sequences=return_sequences,
+                                return_state=return_state,
+                                go_backwards=go_backwards,
+                                stateful=stateful,
+                                unroll=unroll,
+                                **kwargs)
+    self.activity_regularizer = L.regularizers.get(activity_regularizer)
 
 class NestedTimeDist(L.TimeDistributed):
   """Nested TimeDistributed wrapper for higher rank tensors."""
-  # Only override the call to forcefully use the rnn version
-  def call(self, inputs, **kwargs):
+  def call(self, inputs, mask=None, training=None, initial_state=None):
     def step(x, _):
-      output = self.layer.call(x, **kwargs)
+      output = self.layer.call(x, mask=mask,
+                               training=training,
+                               initial_state=initial_state)
       return output, []
     _, outputs, _ = K.rnn(step, inputs,
                           initial_states=[],
@@ -32,22 +97,25 @@ def build_model(char_size=27, training=True):
   query = L.Input(shape=(None,), name='query', dtype='int32')
 
   # Contextual embeddeding of symbols
+  onehot_weights = np.eye(char_size)
+  onehot_weights[0, 0] = 0 # Clear zero index
   onehot = L.Embedding(char_size, char_size,
-                       embeddings_initializer='identity',
-                       mask_zero=True,
                        trainable=False,
+                       weights=[onehot_weights],
                        name='onehot')
   embedded_ctx = onehot(context) # (?, rules, preds, chars, char_size)
   embedded_q = onehot(query) # (?, chars, char_size)
 
-  # Run the initial pass over the context and query
-  embed_pred = L.GRU(PRED_DIM, name='embed_pred')
+  embed_pred = ZeroGRU(PRED_DIM, name='embed_pred')
   embedded_predq = embed_pred(embedded_q) # (?, PRED_DIM)
+  # For every rule, for every predicate, embed the predicate
   embedded_ctx_preds = NestedTimeDist(NestedTimeDist(embed_pred, name='nest1'), name='nest2')(embedded_ctx)
   # (?, rules, preds, PRED_DIM)
 
-  embed_rule = L.GRU(RULE_DIM, go_backwards=True, name='embed_rule')
-  embedded_rules = NestedTimeDist(embed_rule, name='d_embed_rule')(embedded_ctx_preds)
+  # embed_rule = ZeroGRU(RULE_DIM, go_backwards=True, name='embed_rule')
+  # embedded_rules = NestedTimeDist(embed_rule, name='d_embed_rule')(embedded_ctx_preds)
+  get_heads = L.Lambda(lambda x: x[:, :, 0, :], name='rule_heads')
+  embedded_rules = get_heads(embedded_ctx_preds)
   # (?, rules, RULE_DIM)
 
   # Reused layers over iterations
@@ -57,7 +125,7 @@ def build_model(char_size=27, training=True):
   att_dense = L.TimeDistributed(L.Dense(1), name='att_dense')
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
 
-  unifier = NestedTimeDist(L.GRU(STATE_DIM, name='unifier'), name='dist_unifier')
+  unifier = NestedTimeDist(ZeroGRU(STATE_DIM, name='unifier'), name='dist_unifier')
   gating = L.Dense(1, activation='sigmoid', name='gating')
   gate2 = L.Lambda(lambda xyg: xyg[2]*xyg[0] + (1-xyg[2])*xyg[1], name='gate')
 
