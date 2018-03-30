@@ -146,28 +146,33 @@ def nstep_deduction(ctx_size, steps):
   ctx, targets = list(), list()
   i, pidx = 0, 0
   while i < ctx_size:
-    rtype = R.randrange(3 if i == 0 else 4)
+    rtype = R.randrange(2 if i == 0 else 3)
     if rtype == 0:
       # Double variable swap deduction rules
       vs = R.sample(var, 2)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs[::-1])])
       if i == 0:
         # Add the n steps
+        swapc = 1
         for j in range(steps-1):
           vs = R.sample(var, 2)
-          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs[::-1])])
+          toswap = R.random() < 0.5 # Do we swap again?
+          args = vs[::-1] if toswap else vs
+          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], args)])
+          swapc += int(toswap)
         # Add the ground case
         args = R.sample(consts[:-1], 2)
         ctx.append([(preds[pidx+steps], args)])
         i += steps
+        args = args if swapc % 2 == 0 else args[::-1]
         targets.append(((preds[pidx], args), 1))
         targets.append(((preds[pidx], args[::-1]), 0))
         pidx += steps-1
       pidx += 2
-    elif rtype == 1 or rtype == 2:
+    elif rtype == 1:
       # Double variable non-swap deduction rules
       # Single variable deduction rules
-      argc = rtype
+      argc = R.randint(1, 2)
       vs = R.sample(var, argc)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
       if i == 0:
@@ -216,9 +221,9 @@ def gen_task6(ctx_size):
   ctx, targets = list(), list()
   i, pidx = 0, 0
   while i < ctx_size:
-    rtype = R.randrange(2 if i == 0 else 3)
-    if rtype == 0 or rtype == 1:
-      argc = rtype + 1
+    rtype = R.randrange(1 if i == 0 else 2)
+    if rtype == 0:
+      argc = R.randint(1, 2)
       # Double variable AND with different vars
       # Single variable AND
       vs = R.sample(var, argc)
