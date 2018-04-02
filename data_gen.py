@@ -266,8 +266,8 @@ def gen_task6(ctx_size):
   """Logical AND: p(X):-q(X);r(X)."""
   logical_and(ctx_size)
 
-def gen_task7(ctx_size):
-  """Logical OR: p(X):-q(X).p(X):-r(X)."""
+def logical_or(ctx_size, negation=False):
+  """Logical OR with optional negation: p(X):-q(X).p(X):-r(X)."""
   assert ctx_size >= 4
   preds = r_preds(ctx_size*3+1)
   consts = r_consts(ctx_size+2)
@@ -281,7 +281,8 @@ def gen_task7(ctx_size):
       argc = R.randint(1, 2)
       vs = R.sample(var, argc)
       swap = R.random() < 0.5
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs if swap else vs[::-1])])
+      prefix = '-' if negation and i == 0 else ''
+      ctx.append([(preds[pidx], vs), (prefix + preds[pidx+1], vs if swap else vs[::-1])])
       if i == 0:
         # Add the extra branching rule
         ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
@@ -291,16 +292,16 @@ def gen_task7(ctx_size):
         argso = choices(consts[:-1], argc)
         ctx.append([(preds[pidx], argso)])
         i += 3
-        if R.random() < 0.5:
+        if R.random() < 0.2 and not negation:
           # Shortcut case
           targets.append(((preds[pidx], argso), 1))
         else:
           # Follow only one of the rules
-          targets.append(((preds[pidx], args), 1))
+          targets.append(((preds[pidx], args), 1-int(negation)))
         # Fail on non-matching constant
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
-        targets.append(((preds[pidx], args), 0))
+        targets.append(((preds[pidx], args), int(negation)))
       pidx += 3
     else:
       # Some other ground cases
@@ -309,6 +310,10 @@ def gen_task7(ctx_size):
       pidx += 1
     i += 1
   output(ctx, targets)
+
+def gen_task7(ctx_size):
+  """Logical OR: p(X):-q(X).p(X):-r(X)."""
+  logical_or(ctx_size)
 
 def gen_task8(ctx_size):
   """Transitive case: p(X,Y):-q(X,Z);r(Z,Y)."""
@@ -361,6 +366,10 @@ def gen_task10(ctx_size):
 def gen_task11(ctx_size):
   """Logical AND with NBF: p(X):-q(X);-r(X)."""
   logical_and(ctx_size, True)
+
+def gen_task12(ctx_size):
+  """Logical OR with NBF: p(X):--q(X).p(X):-r(X)."""
+  logical_or(ctx_size, True)
 
 if __name__ == '__main__':
   # Arguments
