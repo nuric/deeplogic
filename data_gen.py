@@ -137,7 +137,7 @@ def gen_task2(ctx_size):
       ctx.append([pred])
   output(ctx, targets)
 
-def nstep_deduction(ctx_size, steps):
+def nstep_deduction(ctx_size, steps, negation=False):
   assert steps >= 1
   assert ctx_size >= (steps + 2)
   preds = r_preds(ctx_size*2+steps)
@@ -145,12 +145,13 @@ def nstep_deduction(ctx_size, steps):
   var = r_vars(ctx_size)
   ctx, targets = list(), list()
   i, pidx = 0, 0
+  prefix = '-' if negation else ''
   while i < ctx_size:
     rtype = R.randrange(2 if i == 0 else 3)
     if rtype == 0:
       # Double variable swap deduction rules
       vs = R.sample(var, 2)
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs[::-1])])
+      ctx.append([(preds[pidx], vs), (prefix+preds[pidx+1], vs[::-1])])
       if i == 0:
         # Add the n steps
         swapc = 1
@@ -165,8 +166,8 @@ def nstep_deduction(ctx_size, steps):
         ctx.append([(preds[pidx+steps], args)])
         i += steps
         args = args if swapc % 2 == 0 else args[::-1]
-        targets.append(((preds[pidx], args), 1))
-        targets.append(((preds[pidx], args[::-1]), 0))
+        targets.append(((preds[pidx], args), 1-int(negation)))
+        targets.append(((preds[pidx], args[::-1]), int(negation)))
         pidx += steps-1
       pidx += 2
     elif rtype == 1:
@@ -174,7 +175,7 @@ def nstep_deduction(ctx_size, steps):
       # Single variable deduction rules
       argc = R.randint(1, 2)
       vs = R.sample(var, argc)
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
+      ctx.append([(preds[pidx], vs), (prefix+preds[pidx+1], vs)])
       if i == 0:
         # Add the n steps
         for j in range(steps-1):
@@ -184,19 +185,20 @@ def nstep_deduction(ctx_size, steps):
         # Add the ground case
         ctx.append([(preds[pidx+steps], args)])
         i += steps
-        targets.append(((preds[pidx], args), 1))
+        targets.append(((preds[pidx], args), 1-int(negation)))
         # Fail on non-matching constant
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
         ctx.append([(preds[-1], args)]) # Decoy rule
         i += 1
-        targets.append(((preds[pidx], args), 0))
+        targets.append(((preds[pidx], args), int(negation)))
         pidx += steps-1
       pidx += 2
     else:
       # Ground instances
       ctx.append([(preds[pidx], choices(consts, 1))])
       pidx += 1
+    prefix = ''
     i += 1
   output(ctx, targets)
 
@@ -334,6 +336,14 @@ def gen_task8(ctx_size):
       pidx += 1
     i += 1
   output(ctx, targets)
+
+def gen_task9(ctx_size):
+  """Single step deduction with NBF: p(X):--q(X)."""
+  nstep_deduction(ctx_size, 1, True)
+
+def gen_task10(ctx_size):
+  """Double step deduction with NBF: p(X):--q(X).q(X):-r(X)."""
+  nstep_deduction(ctx_size, 2, True)
 
 if __name__ == '__main__':
   # Arguments
