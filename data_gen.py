@@ -214,9 +214,9 @@ def gen_task5(ctx_size):
   """Triple step deduction."""
   nstep_deduction(ctx_size, 3)
 
-def gen_task6(ctx_size):
-  """Logical AND: p(X):-q(X);r(X)."""
-  assert ctx_size >= 3
+def logical_and(ctx_size, negation=False):
+  """Logical AND with optional negation: p(X):-q(X);r(X)."""
+  assert ctx_size >= (4 if negation else 3)
   preds = r_preds(ctx_size*3+1)
   consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
@@ -233,17 +233,26 @@ def gen_task6(ctx_size):
                   (preds[pidx+1], vs[:1]),
                   (preds[pidx+2], vs[1:] or vs)])
       if i == 0:
+        ridx = R.randint(1, 2)
+        if negation:
+          # Add negation to random predicate in body
+          pred = ctx[-1][ridx]
+          ctx[-1][ridx] = ('-' + pred[0], pred[1])
         # Add the ground cases
         args = choices(consts[:-1], argc)
         ctx.append([(preds[pidx+1], args[:1])])
         ctx.append([(preds[pidx+2], args[1:] or args)])
         i += 2
+        if negation and argc == 1:
+          # Add the non-matching case to prove the rule
+          ctx.append([(preds[pidx+(3-ridx)], [consts[-1]])])
+          i += 1
         # Successful case
-        targets.append(((preds[pidx], args), 1))
+        targets.append(((preds[pidx], args), 1-int(negation)))
         # Fail on non-matching constant
         args = args.copy()
-        args[R.randrange(len(args))] = consts[-1]
-        targets.append(((preds[pidx], args), 0))
+        args[min(ridx-1, len(args)-1)] = consts[-1]
+        targets.append(((preds[pidx], args), int(negation)))
       pidx += 3
     else:
       # Some other ground cases
@@ -252,6 +261,10 @@ def gen_task6(ctx_size):
       pidx += 1
     i += 1
   output(ctx, targets)
+
+def gen_task6(ctx_size):
+  """Logical AND: p(X):-q(X);r(X)."""
+  logical_and(ctx_size)
 
 def gen_task7(ctx_size):
   """Logical OR: p(X):-q(X).p(X):-r(X)."""
@@ -344,6 +357,10 @@ def gen_task9(ctx_size):
 def gen_task10(ctx_size):
   """Double step deduction with NBF: p(X):--q(X).q(X):-r(X)."""
   nstep_deduction(ctx_size, 2, True)
+
+def gen_task11(ctx_size):
+  """Logical AND with NBF: p(X):-q(X);-r(X)."""
+  logical_and(ctx_size, True)
 
 if __name__ == '__main__':
   # Arguments
