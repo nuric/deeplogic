@@ -11,6 +11,7 @@ from models import build_model
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
+parser.add_argument("-e", "--eval", action="store_true", help="Evaluate on each test file.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -57,6 +58,12 @@ def train(model, model_file):
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
 
+def evaluate(model):
+  """Evaluate model on each test data."""
+  for fname in glob.glob("data/test_*.txt"):
+    dgen = LogicSeq.from_file(fname, 32)
+    print(model.evaluate_generator(dgen))
+
 def debug(model):
   """Run a single data point for debugging."""
   ctx = "q(a).p(X,Y):-q(Y)."
@@ -64,6 +71,7 @@ def debug(model):
   print("CTX:", ctx)
   print("Q:", q)
   print("OUT:", ask(ctx, q, model))
+
 if __name__ == '__main__':
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
@@ -72,5 +80,8 @@ if __name__ == '__main__':
   nn_model.summary()
   if ARGS.debug:
     debug(nn_model)
+  elif ARGS.eval:
+    import glob
+    evaluate(nn_model)
   else:
     train(nn_model, MODEL_FILE)
