@@ -4,11 +4,10 @@ import keras.backend as K
 import keras.layers as L
 from keras.models import Model
 
-PRED_DIM = 32
-RULE_DIM = 64
+PRED_DIM = 64
 STATE_DIM = 128
 ATT_LATENT_DIM = 64
-ITERATIONS = 3
+ITERATIONS = 4
 
 # pylint: disable=line-too-long
 
@@ -112,11 +111,11 @@ def build_model(char_size=27, training=True):
   embedded_ctx_preds = NestedTimeDist(NestedTimeDist(embed_pred, name='nest1'), name='nest2')(embedded_ctx)
   # (?, rules, preds, PRED_DIM)
 
-  # embed_rule = ZeroGRU(RULE_DIM, go_backwards=True, name='embed_rule')
+  # embed_rule = ZeroGRU(PRED_DIM, go_backwards=True, name='embed_rule')
   # embedded_rules = NestedTimeDist(embed_rule, name='d_embed_rule')(embedded_ctx_preds)
   get_heads = L.Lambda(lambda x: x[:, :, 0, :], name='rule_heads')
   embedded_rules = get_heads(embedded_ctx_preds)
-  # (?, rules, RULE_DIM)
+  # (?, rules, PRED_DIM)
 
   # Reused layers over iterations
   rule_to_att = L.TimeDistributed(L.Dense(ATT_LATENT_DIM, name='rule_to_att'), name='d_rule_to_att')
@@ -126,8 +125,8 @@ def build_model(char_size=27, training=True):
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
 
   unifier = NestedTimeDist(ZeroGRU(STATE_DIM, name='unifier'), name='dist_unifier')
-  gating = L.Dense(1, activation='sigmoid', name='gating')
-  gate2 = L.Lambda(lambda xyg: xyg[2]*xyg[0] + (1-xyg[2])*xyg[1], name='gate')
+  # gating = L.Dense(1, activation='sigmoid', name='gating')
+  # gate2 = L.Lambda(lambda xyg: xyg[2]*xyg[0] + (1-xyg[2])*xyg[1], name='gate')
 
   # Reasoning iterations
   state = L.Dense(STATE_DIM, activation='tanh', name='init_state')(embedded_predq)
@@ -137,7 +136,7 @@ def build_model(char_size=27, training=True):
     # Compute attention between rule and query state
     att_state = state_to_att(state) # (?, ATT_LATENT_DIM)
     att_state = repeat_toctx(att_state) # (?, rules, ATT_LATENT_DIM)
-    sim_vec = L.multiply([ctx_rules, att_state])
+    sim_vec = L.multiply([ctx_rules, att_state]) # (?, rules, ATT_LATENT_DIM)
     sim_vec = att_dense(sim_vec) # (?, rules, 1)
     sim_vec = squeeze2(sim_vec) # (?, rules)
     sim_vec = L.Softmax(axis=1)(sim_vec)
@@ -146,14 +145,7 @@ def build_model(char_size=27, training=True):
     # Unify every rule and weighted sum based on attention
     new_states = unifier(embedded_ctx_preds, initial_state=[state])
     # (?, rules, STATE_DIM)
-    new_state = L.dot([sim_vec, new_states], (1, 1))
-    s_m_ns = L.multiply([state, new_state])
-    s_s_ns = L.subtract([state, new_state])
-    gate = L.concatenate([state, new_state, s_m_ns, s_s_ns])
-    gate = gating(gate)
-    outs.append(gate)
-    new_state = gate2([state, new_state, gate])
-    state = new_state
+    state = L.dot([sim_vec, new_states], (1, 1))
 
   # Predication
   out = L.Dense(1, activation='sigmoid', name='out')(state)
