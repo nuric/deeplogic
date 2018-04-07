@@ -371,6 +371,39 @@ def gen_task12(ctx_size):
   """Logical OR with NBF: p(X):--q(X).p(X):-r(X)."""
   logical_or(ctx_size, True)
 
+def gen_task0(ctx_size):
+  """Generate an ILP task example."""
+  assert ctx_size >= 1
+  argc = 1
+  goal= 'f'
+  premise = 'b'
+  preds = r_preds(ctx_size+1)
+  consts = r_consts(ctx_size+2)
+  var = r_vars(ctx_size)
+  ctx, targets = list(), list()
+  # Generate according to goal <- premise
+  i, pidx = 0, 0
+  while i < ctx_size:
+    if i == 0:
+      args = choices(consts[:-1], argc)
+      # Add the successful ground case
+      ctx.append([(premise, args)])
+      targets.append(((goal, args), 1))
+      # Fail on non-matching constant
+      args = args.copy()
+      args[R.randrange(len(args))] = consts[-1]
+      targets.append(((goal, args), 0))
+      # Add padding length dummy rule
+      vs = choices(var, argc)
+      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
+      i += 1
+    else:
+      # Fill with noise, ground atoms
+      ctx.append([(preds[pidx], choices(consts, argc))])
+    i += 1
+    pidx += 1
+  output(ctx, targets)
+
 if __name__ == '__main__':
   # Arguments
   parser = argparse.ArgumentParser(description="Generate logic program data.")

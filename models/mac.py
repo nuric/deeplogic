@@ -88,12 +88,15 @@ class NestedTimeDist(L.TimeDistributed):
                           unroll=False)
     return outputs
 
-def build_model(char_size=27, training=True):
+def build_model(char_size=27, training=True, ilp=False):
   """Build the model."""
   # Inputs
   # Context: (rules, preds, chars,)
   context = L.Input(shape=(None, None, None,), name='context', dtype='int32')
   query = L.Input(shape=(None,), name='query', dtype='int32')
+
+  if ilp:
+    context, query, templates = ilp
 
   # Contextual embeddeding of symbols
   onehot_weights = np.eye(char_size)
@@ -104,6 +107,11 @@ def build_model(char_size=27, training=True):
                        name='onehot')
   embedded_ctx = onehot(context) # (?, rules, preds, chars, char_size)
   embedded_q = onehot(query) # (?, chars, char_size)
+
+  if ilp:
+    # Combine the templates with the context, (?, rules+temps, preds, chars, char_size)
+    embedded_ctx = L.Lambda(lambda xs: K.concatenate(xs, axis=1), name='template_concat')([templates, embedded_ctx])
+    # embedded_ctx = L.concatenate([templates, embedded_ctx], axis=1)
 
   embed_pred = ZeroGRU(PRED_DIM, name='embed_pred')
   embedded_predq = embed_pred(embedded_q) # (?, PRED_DIM)
@@ -120,7 +128,7 @@ def build_model(char_size=27, training=True):
   # Reused layers over iterations
   rule_to_att = L.TimeDistributed(L.Dense(ATT_LATENT_DIM, name='rule_to_att'), name='d_rule_to_att')
   state_to_att = L.Dense(ATT_LATENT_DIM, name='state_to_att')
-  repeat_toctx = L.RepeatVector(K.shape(context)[1], name='repeat_to_ctx')
+  repeat_toctx = L.RepeatVector(K.shape(embedded_ctx)[1], name='repeat_to_ctx')
   att_dense = L.TimeDistributed(L.Dense(1), name='att_dense')
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
 
@@ -149,7 +157,9 @@ def build_model(char_size=27, training=True):
 
   # Predication
   out = L.Dense(1, activation='sigmoid', name='out')(state)
-  if training:
+  if ilp:
+    return outs, out
+  elif training:
     model = Model([context, query], [out])
     model.compile(loss='binary_crossentropy',
                   optimizer='rmsprop',

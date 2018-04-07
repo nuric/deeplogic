@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
 
-from data_gen import CHAR_IDX
+from data_gen import CHAR_IDX, IDX_CHAR
 from utils import LogicSeq
 from models import build_model
 
@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("-e", "--eval", action="store_true", help="Evaluate on each test file.")
+parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -28,14 +29,15 @@ def ask(context, query, model):
   # print(dgen[0])
   out = model.predict_generator(dgen)
   # print("SHAPES:", [o.shape for o in out])
-  return out
-  # return np.asscalar(out)
+  for o in out:
+    print(o)
+  return np.asscalar(out[-1])
 
 def train(model, model_file):
   """Train the given model saving weights to model_file."""
   # Setup callbacks
-  callbacks = [ModelCheckpoint(filepath=model_file, save_weights_only=True),
-               ReduceLROnPlateau(monitor='loss', factor=0.8, patience=4, min_lr=0.001, verbose=1),
+  callbacks = [ModelCheckpoint(filepath=model_file, verbose=1, save_best_only=True, save_weights_only=True),
+               # ReduceLROnPlateau(monitor='loss', factor=0.8, patience=4, min_lr=0.001, verbose=1),
                TerminateOnNaN()]
   # Big data machine learning in the cloud
   traind = LogicSeq.from_file("data/train.txt", 32)
@@ -64,15 +66,79 @@ def evaluate(model):
     dgen = LogicSeq.from_file(fname, 32)
     print(model.evaluate_generator(dgen))
 
+def ilp(training=True):
+  """Run the ILP task using the ILP model."""
+  # Create the head goal
+  goals, vgoals = ["f(X)"], list()
+  for g in goals:
+    v = np.zeros((1, 1, 4, len(CHAR_IDX)+1))
+    for i, c in enumerate(g):
+      v[0, 0, i, CHAR_IDX[c]] = 1
+    vgoals.append(v)
+  # Create the ILP wrapper model
+  model = build_model("ilp", "weights/ilp.h5",
+                      char_size=len(CHAR_IDX)+1,
+                      training=training,
+                      goals=vgoals,
+                      num_preds=1,
+                      pred_len=4)
+  model.summary()
+  traind = LogicSeq.from_file("data/ilp_train.txt", 32)
+  testd = LogicSeq.from_file("data/ilp_test.txt", 32)
+  if training:
+    # Setup callbacks
+    callbacks = [ModelCheckpoint(filepath="weights/ilp.h5", verbose=1, save_best_only=True, save_weights_only=True),
+                 TerminateOnNaN()]
+    model.fit_generator(traind, epochs=200,
+                        callbacks=callbacks,
+                        validation_data=testd,
+                        shuffle=True)
+  else:
+    # Dummy input to get templates
+    ctx = "b(h).v(O):-c(O).c(a)."
+    ctx = ctx.split('.')[:-1] # split rules
+    ctx = [r + '.' for r in ctx]
+    dgen = LogicSeq([(ctx, "f(h).", 0)], 1, False, False)
+    print("TEMPLATES:")
+    outs = model.predict_on_batch(dgen[0])
+    ts, out = outs[0], outs[-1]
+    print(ts)
+    # Decode template
+    # (num_templates, num_preds, pred_length, char_size)
+    ts = np.argmax(ts[0], axis=-1)
+    ts = np.vectorize(lambda i: IDX_CHAR[i])(ts)
+    print(ts)
+    print("CTX:", ctx)
+    for o in outs[1:-1]:
+      print(o)
+    print("OUT:", out)
+
+
 def debug(model):
   """Run a single data point for debugging."""
-  ctx = "q(a).p(X,Y):-q(Y)."
-  q = "p(a,b)."
+  ctx = "q(a).p(Y):-r(Y).r(X):-q(X).r(a)."
+  q = "p(a)."
+  # ctx = "r(X):-t(X).t(a).x(Y):-r(Y).t(Y):-p(Y).p(b)."
+  # q = "x(b)."
+  # ctx = "k(w).a(O):-o(O).o(C):-k(C).p(v)."
+  # q = "p(b)."
+  # ctx = "r(a,b).q(Y,X):-r(X,Y).p(Z,T):-q(Z,T)."
+  # q = "p(b,a)."
+  # ctx = "l(t,s).l(X,Y):-l(X,Z);l(Z,Y).l(s,a)."
+  # q = "l(t,b)."
+  # with open("/homes/nuric/ntp/data/countries/countries_S1.nl") as f:
+    # ctx = "".join([l.strip() for l in f if '(nor' in l])
+  # ctx += "l(X,Y):-l(X,Z);l(Z,Y)."
+  # ctx += "l(neu,eu)."
+  # q = "l(nor,eu)."
   print("CTX:", ctx)
   print("Q:", q)
   print("OUT:", ask(ctx, q, model))
 
 if __name__ == '__main__':
+  if ARGS.ilp:
+    ilp(not ARGS.debug)
+    exit()
   # Load in the model
   nn_model = build_model(MODEL_NAME, MODEL_FILE,
                          char_size=len(CHAR_IDX)+1,
