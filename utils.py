@@ -35,7 +35,7 @@ class LogicSeq(Sequence):
                 for pred in r]
                for r in rules]
       ctxs.append(rules)
-      queries.append([CHAR_IDX[c] for c in q])
+      queries.append([CHAR_IDX[c] for c in q[:-1]]) # Remove '.' at the end
       targets.append(int(t))
     vctxs = np.zeros((len(dpoints),
                       max([len(rs) for rs in ctxs]),

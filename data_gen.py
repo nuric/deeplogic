@@ -6,7 +6,7 @@ import random as R
 CONST_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
 VAR_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 PRED_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
-EXTRA_SYMBOLS = ".:-,;()"
+EXTRA_SYMBOLS = ",()"
 
 CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
 # Reserve 0 for padding
@@ -392,11 +392,13 @@ def gen_task0(ctx_size):
       # Fail on non-matching constant
       args = args.copy()
       args[R.randrange(len(args))] = consts[-1]
+      ctx.append([(preds[pidx], args)])
+      pidx += 1
       targets.append(((goal, args), 0))
       # Add padding length dummy rule
       vs = choices(var, argc)
       ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
-      i += 1
+      i += 2
     else:
       # Fill with noise, ground atoms
       ctx.append([(preds[pidx], choices(consts, argc))])
