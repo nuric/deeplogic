@@ -36,12 +36,12 @@ class LogicSeq(Sequence):
                for r in rules]
       ctxs.append(rules)
       queries.append([CHAR_IDX[c] for c in q[:-1]]) # Remove '.' at the end
-      targets.append(int(t))
+      targets.append(t)
     vctxs = np.zeros((len(dpoints),
                       max([len(rs) for rs in ctxs]),
                       max([len(ps) for rs in ctxs for ps in rs]),
                       max([len(cs) for rs in ctxs for ps in rs for cs in ps])),
-                      dtype='int')
+                     dtype='int')
     # Contexts
     for i in range(len(dpoints)):
       # Rules in context (ie program)
@@ -66,7 +66,7 @@ class LogicSeq(Sequence):
         l = l.strip()
         if l[0] == '?':
           _, q, t = l.split()
-          dpoints.append((ctx.copy(), q, t))
+          dpoints.append((ctx.copy(), q, int(t)))
           isnew_ctx = True
         else:
           if isnew_ctx:
