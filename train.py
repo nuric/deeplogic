@@ -1,7 +1,7 @@
 """Training module for logic-memnn"""
 import argparse
 import numpy as np
-from keras.callbacks import TerminateOnNaN, ModelCheckpoint, ReduceLROnPlateau
+import keras.callbacks as C
 
 from data_gen import CHAR_IDX, IDX_CHAR
 from utils import LogicSeq
@@ -12,6 +12,8 @@ parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("-e", "--eval", action="store_true", help="Evaluate on each test file.")
+parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
+parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 ARGS = parser.parse_args()
 
@@ -36,12 +38,14 @@ def ask(context, query, model):
 def train(model, model_file):
   """Train the given model saving weights to model_file."""
   # Setup callbacks
-  callbacks = [ModelCheckpoint(filepath=model_file, verbose=1, save_best_only=True, save_weights_only=True),
-               # ReduceLROnPlateau(monitor='loss', factor=0.8, patience=4, min_lr=0.001, verbose=1),
-               TerminateOnNaN()]
+  callbacks = [C.ModelCheckpoint(filepath=model_file,
+                                 verbose=1,
+                                 save_best_only=True,
+                                 save_weights_only=True),
+               C.TerminateOnNaN()]
   # Big data machine learning in the cloud
-  traind = LogicSeq.from_file("data/train.txt", 32)
-  testd = LogicSeq.from_file("data/test.txt", 32)
+  traind = LogicSeq.from_file(ARGS.trainf, 32)
+  testd = LogicSeq.from_file(ARGS.testf, 32)
   try:
     model.fit_generator(traind, epochs=200,
                         callbacks=callbacks,
@@ -87,8 +91,11 @@ def ilp(training=True):
   testd = LogicSeq.from_file("data/ilp_test.txt", 32)
   if training:
     # Setup callbacks
-    callbacks = [ModelCheckpoint(filepath="weights/ilp.h5", verbose=1, save_best_only=True, save_weights_only=True),
-                 TerminateOnNaN()]
+    callbacks = [C.ModelCheckpoint(filepath="weights/ilp.h5",
+                                   verbose=1,
+                                   save_best_only=True,
+                                   save_weights_only=True),
+                 C.TerminateOnNaN()]
     model.fit_generator(traind, epochs=200,
                         callbacks=callbacks,
                         validation_data=testd,
