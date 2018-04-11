@@ -11,7 +11,6 @@ from models import build_model
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
-parser.add_argument("-e", "--eval", action="store_true", help="Evaluate on each test file.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
@@ -81,12 +80,6 @@ def train(model, model_file):
                ("p(X):-q(X).r(a).", "p(a).")]
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
-
-def evaluate(model):
-  """Evaluate model on each test data."""
-  for fname in glob.glob("data/test_*.txt"):
-    dgen = LogicSeq.from_file(fname, 32)
-    print(model.evaluate_generator(dgen))
 
 def ilp(training=True):
   """Run the ILP task using the ILP model."""
@@ -163,16 +156,13 @@ def debug(model):
 if __name__ == '__main__':
   if ARGS.ilp:
     ilp(not ARGS.debug)
-    exit()
-  # Load in the model
-  nn_model = build_model(MODEL_NAME, MODEL_FILE,
-                         char_size=len(CHAR_IDX)+1,
-                         training=not ARGS.debug)
-  nn_model.summary()
-  if ARGS.debug:
-    debug(nn_model)
-  elif ARGS.eval:
-    import glob
-    evaluate(nn_model)
   else:
-    train(nn_model, MODEL_FILE)
+    # Load in the model
+    nn_model = build_model(MODEL_NAME, MODEL_FILE,
+                           char_size=len(CHAR_IDX)+1,
+                           training=not ARGS.debug)
+    nn_model.summary()
+    if ARGS.debug:
+      debug(nn_model)
+    else:
+      train(nn_model, MODEL_FILE)
