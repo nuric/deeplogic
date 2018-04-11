@@ -14,6 +14,7 @@ parser.add_argument("-d", "--debug", action="store_true", help="Only predict sin
 parser.add_argument("-e", "--eval", action="store_true", help="Evaluate on each test file.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
+parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 ARGS = parser.parse_args()
 
@@ -44,13 +45,30 @@ def train(model, model_file):
                                  save_weights_only=True),
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
-  traind = LogicSeq.from_file(ARGS.trainf, 32)
-  testd = LogicSeq.from_file(ARGS.testf, 32)
   try:
-    model.fit_generator(traind, epochs=200,
-                        callbacks=callbacks,
-                        validation_data=testd,
-                        shuffle=True)
+    if ARGS.curriculum:
+      # Train in an incremental fashion
+      for i in range(1, 13):
+        callbacks = [C.ModelCheckpoint(filepath=model_file,
+                                       verbose=1,
+                                       save_best_only=True,
+                                       save_weights_only=True),
+                     C.TerminateOnNaN()]
+        ft = "data/{}_task1-{}.txt"
+        print("ITERATION:", i)
+        traind = LogicSeq.from_file(ft.format("train", i), 32)
+        testd = LogicSeq.from_file(ft.format("test", i), 32)
+        model.fit_generator(traind, epochs=i*3,
+                            callbacks=callbacks,
+                            validation_data=testd,
+                            shuffle=True)
+    else:
+      traind = LogicSeq.from_file(ARGS.trainf, 32)
+      testd = LogicSeq.from_file(ARGS.testf, 32)
+      model.fit_generator(traind, epochs=120,
+                          callbacks=callbacks,
+                          validation_data=testd,
+                          shuffle=True)
   finally:
     print("Training terminated.")
     # Dump some examples for debugging

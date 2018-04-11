@@ -6,7 +6,7 @@ import random as R
 CONST_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
 VAR_SYMBOLS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 PRED_SYMBOLS = "abcdefghijklmnopqrstuvwxyz"
-EXTRA_SYMBOLS = ",()"
+EXTRA_SYMBOLS = "-,()"
 
 CHARS = sorted(list(set(CONST_SYMBOLS+VAR_SYMBOLS+PRED_SYMBOLS+EXTRA_SYMBOLS)))
 # Reserve 0 for padding
