@@ -4,10 +4,10 @@ import keras.backend as K
 import keras.layers as L
 from keras.models import Model
 
-PRED_DIM = 64
+PRED_DIM = 32
 STATE_DIM = 128
 ATT_LATENT_DIM = 64
-ITERATIONS = 4
+ITERATIONS = 2
 
 # pylint: disable=line-too-long
 
@@ -88,7 +88,7 @@ class NestedTimeDist(L.TimeDistributed):
                           unroll=False)
     return outputs
 
-def build_model(char_size=27, training=True, ilp=False):
+def build_model(char_size=27, training=True, ilp=False, pca=False):
   """Build the model."""
   # Inputs
   # Context: (rules, preds, chars,)
@@ -113,13 +113,13 @@ def build_model(char_size=27, training=True, ilp=False):
     embedded_ctx = L.Lambda(lambda xs: K.concatenate(xs, axis=1), name='template_concat')([templates, embedded_ctx])
     # embedded_ctx = L.concatenate([templates, embedded_ctx], axis=1)
 
-  embed_pred = ZeroGRU(PRED_DIM, name='embed_pred')
+  embed_pred = L.Bidirectional(ZeroGRU(PRED_DIM, name='embed_pred'), name='bi_e_pred')
   embedded_predq = embed_pred(embedded_q) # (?, PRED_DIM)
   # For every rule, for every predicate, embed the predicate
   embedded_ctx_preds = NestedTimeDist(NestedTimeDist(embed_pred, name='nest1'), name='nest2')(embedded_ctx)
   # (?, rules, preds, PRED_DIM)
 
-  # embed_rule = ZeroGRU(PRED_DIM, go_backwards=True, name='embed_rule')
+  # embed_rule = ZeroGRU(PRED_DIM*2, go_backwards=True, name='embed_rule')
   # embedded_rules = NestedTimeDist(embed_rule, name='d_embed_rule')(embedded_ctx_preds)
   get_heads = L.Lambda(lambda x: x[:, :, 0, :], name='rule_heads')
   embedded_rules = get_heads(embedded_ctx_preds)
@@ -129,7 +129,7 @@ def build_model(char_size=27, training=True, ilp=False):
   rule_to_att = L.TimeDistributed(L.Dense(ATT_LATENT_DIM, name='rule_to_att'), name='d_rule_to_att')
   state_to_att = L.Dense(ATT_LATENT_DIM, name='state_to_att')
   repeat_toctx = L.RepeatVector(K.shape(embedded_ctx)[1], name='repeat_to_ctx')
-  att_dense = L.TimeDistributed(L.Dense(1), name='att_dense')
+  att_dense = L.TimeDistributed(L.Dense(1, name='att_dense'), name='d_att_dense')
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
 
   unifier = NestedTimeDist(ZeroGRU(STATE_DIM, name='unifier'), name='dist_unifier')
@@ -137,7 +137,7 @@ def build_model(char_size=27, training=True, ilp=False):
   # gate2 = L.Lambda(lambda xyg: xyg[2]*xyg[0] + (1-xyg[2])*xyg[1], name='gate')
 
   # Reasoning iterations
-  state = L.Dense(STATE_DIM, activation='tanh', name='init_state')(embedded_predq)
+  state = L.Dense(STATE_DIM, name='init_state')(embedded_predq)
   ctx_rules = rule_to_att(embedded_rules) # (?, rules, ATT_LATENT_DIM)
   outs = list()
   for _ in range(ITERATIONS):
@@ -155,14 +155,21 @@ def build_model(char_size=27, training=True, ilp=False):
     # (?, rules, STATE_DIM)
     state = L.dot([sim_vec, new_states], (1, 1))
 
+    # Apply gating
+    # gate = gating(state)
+    # outs.append(gate)
+    # state = gate2([state, new_state, gate])
+
   # Predication
   out = L.Dense(1, activation='sigmoid', name='out')(state)
   if ilp:
     return outs, out
+  elif pca:
+    model = Model([context, query], [embedded_ctx_preds])
   elif training:
     model = Model([context, query], [out])
     model.compile(loss='binary_crossentropy',
-                  optimizer='rmsprop',
+                  optimizer='adam',
                   metrics=['acc'])
   else:
     model = Model([context, query], outs + [out])
