@@ -139,7 +139,7 @@ def gen_task2(ctx_size):
 
 def nstep_deduction(ctx_size, steps, negation=False):
   assert steps >= 1
-  assert ctx_size >= (steps + 2)
+  assert ctx_size >= (steps + 3)
   preds = r_preds(ctx_size*2+steps)
   consts = r_consts(ctx_size+2)
   var = r_vars(ctx_size)
@@ -186,11 +186,13 @@ def nstep_deduction(ctx_size, steps, negation=False):
         ctx.append([(preds[pidx+steps], args)])
         i += steps
         targets.append(((preds[pidx], args), 1-int(negation)))
-        # Fail on non-matching constant
+        # Add some decoy rules to avoid shortcuts
+        ctx.append([(preds[-1], args)])
         args = args.copy()
         args[R.randrange(len(args))] = consts[-1]
-        ctx.append([(preds[-1], args)]) # Decoy rule
-        i += 1
+        ctx.append([(preds[-1], args)]) # Constant decoy rule
+        i += 2
+        # Fail on non-matching constant
         targets.append(((preds[pidx], args), int(negation)))
         pidx += steps-1
       pidx += 2
