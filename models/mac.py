@@ -4,10 +4,8 @@ import keras.backend as K
 import keras.layers as L
 from keras.models import Model
 
-PRED_DIM = 32
-STATE_DIM = 128
-ATT_LATENT_DIM = 64
-ITERATIONS = 2
+PRED_DIM = 64
+STATE_DIM = PRED_DIM
 
 # pylint: disable=line-too-long
 
@@ -88,7 +86,7 @@ class NestedTimeDist(L.TimeDistributed):
                           unroll=False)
     return outputs
 
-def build_model(char_size=27, training=True, ilp=False, pca=False):
+def build_model(char_size=27, iterations=4, training=True, ilp=False, pca=False):
   """Build the model."""
   # Inputs
   # Context: (rules, preds, chars,)
@@ -113,7 +111,7 @@ def build_model(char_size=27, training=True, ilp=False, pca=False):
     embedded_ctx = L.Lambda(lambda xs: K.concatenate(xs, axis=1), name='template_concat')([templates, embedded_ctx])
     # embedded_ctx = L.concatenate([templates, embedded_ctx], axis=1)
 
-  embed_pred = L.Bidirectional(ZeroGRU(PRED_DIM, name='embed_pred'), name='bi_e_pred')
+  embed_pred = ZeroGRU(PRED_DIM, go_backwards=True, name='embed_pred')
   embedded_predq = embed_pred(embedded_q) # (?, PRED_DIM)
   # For every rule, for every predicate, embed the predicate
   embedded_ctx_preds = NestedTimeDist(NestedTimeDist(embed_pred, name='nest1'), name='nest2')(embedded_ctx)
@@ -126,9 +124,8 @@ def build_model(char_size=27, training=True, ilp=False, pca=False):
   # (?, rules, PRED_DIM)
 
   # Reused layers over iterations
-  rule_to_att = L.TimeDistributed(L.Dense(ATT_LATENT_DIM, name='rule_to_att'), name='d_rule_to_att')
-  state_to_att = L.Dense(ATT_LATENT_DIM, name='state_to_att')
   repeat_toctx = L.RepeatVector(K.shape(embedded_ctx)[1], name='repeat_to_ctx')
+  diff_sq = L.Lambda(lambda xy: K.square(xy[0]-xy[1]), output_shape=(None, STATE_DIM), name='diff_sq')
   att_dense = L.TimeDistributed(L.Dense(1, name='att_dense'), name='d_att_dense')
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
 
@@ -137,14 +134,14 @@ def build_model(char_size=27, training=True, ilp=False, pca=False):
   # gate2 = L.Lambda(lambda xyg: xyg[2]*xyg[0] + (1-xyg[2])*xyg[1], name='gate')
 
   # Reasoning iterations
-  state = L.Dense(STATE_DIM, name='init_state')(embedded_predq)
-  ctx_rules = rule_to_att(embedded_rules) # (?, rules, ATT_LATENT_DIM)
+  state = embedded_predq
   outs = list()
-  for _ in range(ITERATIONS):
+  for _ in range(iterations):
     # Compute attention between rule and query state
-    att_state = state_to_att(state) # (?, ATT_LATENT_DIM)
-    att_state = repeat_toctx(att_state) # (?, rules, ATT_LATENT_DIM)
-    sim_vec = L.multiply([ctx_rules, att_state]) # (?, rules, ATT_LATENT_DIM)
+    ctx_state = repeat_toctx(state) # (?, rules, STATE_DIM)
+    s_s_c = diff_sq([ctx_state, embedded_rules])
+    s_m_c = L.multiply([embedded_rules, state]) # (?, rules, PRED_DIM)
+    sim_vec = L.concatenate([s_s_c, s_m_c])
     sim_vec = att_dense(sim_vec) # (?, rules, 1)
     sim_vec = squeeze2(sim_vec) # (?, rules)
     sim_vec = L.Softmax(axis=1)(sim_vec)
