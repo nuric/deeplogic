@@ -142,7 +142,7 @@ def nstep_deduction(ctx_size, steps, negation=False):
   assert ctx_size >= (steps + 3)
   preds = r_preds(ctx_size*2+steps)
   consts = r_consts(ctx_size+2)
-  var = r_vars(ctx_size)
+  var = r_vars(10)
   ctx, targets = list(), list()
   i, pidx = 0, 0
   prefix = '-' if negation else ''
@@ -245,8 +245,8 @@ def logical_and(ctx_size, negation=False):
         ctx.append([(preds[pidx+1], args[:1])])
         ctx.append([(preds[pidx+2], args[1:] or args)])
         i += 2
-        if negation and argc == 1:
-          # Add the non-matching case to prove the rule
+        if not negation or argc == 1:
+          # Add the non-matching decoy
           ctx.append([(preds[pidx+(3-ridx)], [consts[-1]])])
           i += 1
         # Successful case
@@ -409,19 +409,25 @@ def gen_task0(ctx_size):
   output(ctx, targets)
 
 if __name__ == '__main__':
+  # pylint: disable=line-too-long
   # Arguments
   parser = argparse.ArgumentParser(description="Generate logic program data.")
-  parser.add_argument("task", help="The task to generate.")
-  parser.add_argument("size", type=int, help="Number of programs to generate.")
+  parser.add_argument("-t", "--task", default="1", help="The task to generate.")
+  parser.add_argument("-s", "--size", default=1, type=int, help="Number of programs to generate.")
+  # Configuration parameters
   parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of program context.")
   parser.add_argument("-cl", "--constant_length", default=1, type=int, help="Length of constants.")
   parser.add_argument("-vl", "--variable_length", default=1, type=int, help="Length of variables.")
-  # pylint: disable=line-too-long
   parser.add_argument("-pl", "--predicate_length", default=1, type=int, help="Length of predicates.")
-  parser.add_argument("-s", "--shuffle_context", action="store_true", help="Shuffle context before output.")
+  parser.add_argument("-sf", "--shuffle_context", action="store_true", help="Shuffle context before output.")
+  # Task specific options
+  parser.add_argument("-ns", "--nstep", type=int, help="Generate nstep deduction programs.")
   ARGS = parser.parse_args()
 
   # Generate given task
   task = "gen_task" + ARGS.task
   for _ in range(ARGS.size):
-    globals()[task](ARGS.context_size)
+    if ARGS.nstep:
+      nstep_deduction(ARGS.context_size, ARGS.nstep)
+    else:
+      globals()[task](ARGS.context_size)
