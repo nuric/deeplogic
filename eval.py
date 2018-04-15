@@ -98,4 +98,4 @@ def plot_custom_preds():
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
 if __name__ == '__main__':
-  globals()[ARGS.pca]()
+  globals()[ARGS.function]()

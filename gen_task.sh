@@ -3,8 +3,10 @@
 FUNC=$1
 DDIR='data/'
 DCMD='python3 data_gen.py'
-SIZE=$2
+shift
+SIZE=$1
 TSIZE=$((SIZE / 10))
+shift
 
 # Task 1: ground instances
 gen_task1() {
@@ -152,11 +154,12 @@ custom() {
   TF=$DDIR'test.txt'
   echo Writing to $F $TF
   rm -f $F $TF
-  for i in 1 2 3 4 6 8 9 10 11; do
+  for i in "$@"; do
+    echo Generating task $i
     gen_task$i $SIZE >> $F
     gen_task$i $TSIZE >> $TF
   done
 }
 
 # Run given function
-$FUNC
+$FUNC "$@"
