@@ -134,24 +134,15 @@ def ilp(training=True):
 
 def debug(model):
   """Run a single data point for debugging."""
-  ctx = "q(a).p(Y):-r(Y).r(X):-q(X).r(a)."
-  q = "p(a)."
-  # ctx = "r(X):-t(X).t(a).x(Y):-r(Y).t(Y):-p(Y).p(b)."
-  # q = "x(b)."
-  # ctx = "k(w).a(O):-o(O).o(C):-k(C).p(v)."
-  # q = "p(b)."
-  # ctx = "r(a,b).q(Y,X):-r(X,Y).p(Z,T):-q(Z,T)."
-  # q = "p(b,a)."
-  # ctx = "l(t,s).l(X,Y):-l(X,Z);l(Z,Y).l(s,a)."
-  # q = "l(t,b)."
-  # with open("/homes/nuric/ntp/data/countries/countries_S1.nl") as f:
-    # ctx = "".join([l.strip() for l in f if '(nor' in l])
-  # ctx += "l(X,Y):-l(X,Z);l(Z,Y)."
-  # ctx += "l(neu,eu)."
-  # q = "l(nor,eu)."
-  print("CTX:", ctx)
-  print("Q:", q)
-  print("OUT:", ask(ctx, q, model))
+  import readline
+  while True:
+    try:
+      ctx = input("CTX: ").replace(' ', '')
+      q = input("Q: ").replace(' ', '')
+      print("OUT:", ask(ctx, q, model))
+    except(KeyboardInterrupt, EOFError, SystemExit):
+      print("\nTerminating.")
+      break
 
 if __name__ == '__main__':
   if ARGS.ilp:
