@@ -289,9 +289,13 @@ def logical_or(ctx_size, negation=False):
         # Add the extra branching rule
         ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
         # Add ground cases
-        args = choices(consts[:-1], argc)
+        if negation:
+          args = R.sample(consts[:-1], argc*2)
+        else:
+          args = choices(consts[:-1], argc*2)
+        argso = args[len(args)//2:]
+        args = args[:len(args)//2]
         ctx.append([(preds[pidx+1], args if swap else args[::-1])])
-        argso = choices(consts[:-1], argc)
         ctx.append([(preds[pidx], argso)])
         i += 3
         if R.random() < 0.2 and not negation:
