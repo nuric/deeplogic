@@ -138,11 +138,13 @@ def debug(model):
   while True:
     try:
       ctx = input("CTX: ").replace(' ', '')
+      if not ctx:
+        break
       q = input("Q: ").replace(' ', '')
       print("OUT:", ask(ctx, q, model))
     except(KeyboardInterrupt, EOFError, SystemExit):
-      print("\nTerminating.")
       break
+  print("\nTerminating.")
 
 if __name__ == '__main__':
   if ARGS.ilp:
