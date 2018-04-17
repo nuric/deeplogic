@@ -23,6 +23,16 @@ MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
 
+def create_model(summary=False, **kwargs):
+  """Create model from global arguments."""
+  # Load in the model
+  model = build_model(MODEL_NAME, MODEL_FILE,
+                       char_size=len(CHAR_IDX)+1,
+                       **kwargs)
+  if summary:
+    nn_model.summary()
+  return model
+
 def ask(context, query, model):
   """Predict output for given context and query."""
   rs = context.split('.')[:-1] # split rules
@@ -35,10 +45,10 @@ def ask(context, query, model):
     print(o)
   return np.asscalar(out[-1])
 
-def train(model, model_file):
+def train():
   """Train the given model saving weights to model_file."""
   # Setup callbacks
-  callbacks = [C.ModelCheckpoint(filepath=model_file,
+  callbacks = [C.ModelCheckpoint(filepath=MODEL_FILE,
                                  verbose=1,
                                  save_best_only=True,
                                  save_weights_only=True),
@@ -47,14 +57,15 @@ def train(model, model_file):
   try:
     if ARGS.curriculum:
       # Train in an incremental fashion
-      for i in range(1, 13):
-        callbacks = [C.ModelCheckpoint(filepath=model_file,
+      for i, its in zip(range(1, 6), [1, 1, 2, 3, 4]):
+        print("TASK:", i, "ITERATIONS:", its)
+        model = create_model(iterations=its)
+        callbacks = [C.ModelCheckpoint(filepath=MODEL_FILE,
                                        verbose=1,
                                        save_best_only=True,
                                        save_weights_only=True),
                      C.TerminateOnNaN()]
         ft = "data/{}_task1-{}.txt"
-        print("ITERATION:", i)
         traind = LogicSeq.from_file(ft.format("train", i), 32)
         testd = LogicSeq.from_file(ft.format("test", i), 32)
         model.fit_generator(traind, epochs=i*3,
@@ -62,6 +73,7 @@ def train(model, model_file):
                             validation_data=testd,
                             shuffle=True)
     else:
+      model = create_model()
       traind = LogicSeq.from_file(ARGS.trainf, 32)
       testd = LogicSeq.from_file(ARGS.testf, 32)
       model.fit_generator(traind, epochs=120,
@@ -80,6 +92,22 @@ def train(model, model_file):
                ("p(X):-q(X).r(a).", "p(a).")]
     for c, q in samples:
       print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
+
+def debug():
+  """Run a single data point for debugging."""
+  import readline
+  model = create_model(training=False)
+  while True:
+    try:
+      ctx = input("CTX: ").replace(' ', '')
+      if not ctx:
+        break
+      q = input("Q: ").replace(' ', '')
+      print("OUT:", ask(ctx, q, model))
+    except(KeyboardInterrupt, EOFError, SystemExit):
+      break
+  print("\nTerminating.")
+
 
 def ilp(training=True):
   """Run the ILP task using the ILP model."""
@@ -131,31 +159,10 @@ def ilp(training=True):
       print(o)
     print("OUT:", out)
 
-
-def debug(model):
-  """Run a single data point for debugging."""
-  import readline
-  while True:
-    try:
-      ctx = input("CTX: ").replace(' ', '')
-      if not ctx:
-        break
-      q = input("Q: ").replace(' ', '')
-      print("OUT:", ask(ctx, q, model))
-    except(KeyboardInterrupt, EOFError, SystemExit):
-      break
-  print("\nTerminating.")
-
 if __name__ == '__main__':
   if ARGS.ilp:
     ilp(not ARGS.debug)
+  elif ARGS.debug:
+    debug()
   else:
-    # Load in the model
-    nn_model = build_model(MODEL_NAME, MODEL_FILE,
-                           char_size=len(CHAR_IDX)+1,
-                           training=not ARGS.debug)
-    nn_model.summary()
-    if ARGS.debug:
-      debug(nn_model)
-    else:
-      train(nn_model, MODEL_FILE)
+    train()
