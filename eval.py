@@ -97,5 +97,38 @@ def plot_custom_preds():
   plt.title("Predicate Embeddings")
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
+def plot_attention():
+  """Plot attention vector over given context."""
+  model = build_model(MODEL_NAME, MODEL_FILE,
+                      char_size=len(CHAR_IDX)+1,
+                      training=False)
+  model.summary()
+  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).",
+          "p(X):-q(X).q(X):-r(X).r(a).t(a).",
+          "p(X):-q(X).q(a).r(a).t(a)."]
+  plt.set_cmap("Blues")
+  for i, ctx in enumerate(ctxs):
+    print("CTX:", ctx)
+    rs = ctx.split('.')[:-1]
+    ctx = [r + '.' for r in rs]
+    dgen = LogicSeq([(ctx, "p(a).", 0)], 1, False, False)
+    out = model.predict_generator(dgen)
+    sims = out[:-1]
+    out = np.round(np.asscalar(out[-1]), 2)
+    sims = np.stack(sims, axis=0).squeeze()
+    print("ATTS:", sims)
+    sims = sims.T
+    ax = plt.subplot(1, len(ctxs), i+1)
+    ax.xaxis.tick_top()
+    plt.imshow(sims)
+    plt.yticks(range(len(rs)), rs)
+    plt.xlabel("p(Q|C)=" + str(out))
+    plt.xticks(range(4), range(1, 5))
+    # if i == len(ctxs) - 1:
+      # plt.colorbar(fraction=0.05)
+    print("OUT:", out)
+  plt.tight_layout()
+  plt.savefig(ARGS.outf, bbox_inches='tight')
+
 if __name__ == '__main__':
   globals()[ARGS.function]()
