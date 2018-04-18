@@ -1,5 +1,4 @@
 """Naive LSTM model."""
-import numpy as np
 import keras.layers as L
 import keras.backend as K
 from keras.models import Model
@@ -19,10 +18,9 @@ def build_model(char_size=27, iterations=4, training=True):
   flat_ctx = var_flat(context)
 
   # Onehot embedding
-  onehot_weights = np.eye(char_size)
   onehot = L.Embedding(char_size, char_size,
+                       embeddings_initializer='identity',
                        trainable=False,
-                       weights=[onehot_weights],
                        mask_zero=True,
                        name='onehot')
   embedded_ctx = onehot(flat_ctx) # (?, rules, preds, chars, char_size)
