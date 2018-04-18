@@ -1,34 +1,53 @@
 """Naive LSTM model."""
-from keras.layers import Input, Embedding, LSTM, RepeatVector, Dense
-from keras.layers import Bidirectional, concatenate
+import numpy as np
+import keras.layers as L
+import keras.backend as K
 from keras.models import Model
 
-EMBEDDING_DIM = 25
-HIDDEN_DIM = 50
+LATENT_DIM = 64
 
 # pylint: disable=line-too-long
 
-def build_model(context_maxlen=60, query_maxlen=10, char_size=27):
+def build_model(char_size=27, iterations=4, training=True):
   """Build the model."""
   # Inputs
-  context = Input(shape=(context_maxlen,), name='context', dtype='int32')
-  query = Input(shape=(query_maxlen,), name='query', dtype='int32')
+  # Context: (rules, preds, chars,)
+  context = L.Input(shape=(None, None, None,), name='context', dtype='int32')
+  query = L.Input(shape=(None,), name='query', dtype='int32')
 
-  # Embeddings
-  embed = Embedding(char_size, EMBEDDING_DIM, mask_zero=True, name='embed')
-  embedded_ctx, embedded_q = embed(context), embed(query)
+  var_flat = L.Lambda(lambda x: K.reshape(x, K.stack([-1, K.prod(K.shape(x)[1:])])), name='var_flat')
+  flat_ctx = var_flat(context)
 
-  # Some feature extraction
-  q = LSTM(HIDDEN_DIM, name='query_features')(embedded_q)
-  q = RepeatVector(context_maxlen, name='repeat_query')(q)
-  ctxq = concatenate([embedded_ctx, q])
+  # Onehot embedding
+  onehot_weights = np.eye(char_size)
+  onehot = L.Embedding(char_size, char_size,
+                       trainable=False,
+                       weights=[onehot_weights],
+                       mask_zero=True,
+                       name='onehot')
+  embedded_ctx = onehot(flat_ctx) # (?, rules, preds, chars, char_size)
+  embedded_q = onehot(query) # (?, chars, char_size)
+
+  # Initial pass
+  init_lstm = L.LSTM(LATENT_DIM, return_state=True, name='init_lstm')
+  _, *states = init_lstm(embedded_q)
+  init_lstm.return_sequences = True
+  ctx, *states = init_lstm(embedded_ctx, initial_state=states)
+
+  # Reused layers over iterations
+  lstm = L.LSTM(LATENT_DIM, return_sequences=True, return_state=True, name='lstm')
+
+  # Iterations
+  for _ in range(iterations):
+    ctx, *states = lstm(ctx, initial_state=states)
 
   # Prediction
-  out = LSTM(HIDDEN_DIM, name='ctxq_read')(ctxq)
-  out = Dense(1, activation='sigmoid', use_bias=False, name='out')(out)
+  out = L.concatenate(states, name='final_states')
+  out = L.Dense(1, activation='sigmoid', name='out')(out)
 
   model = Model([context, query], out)
-  model.compile(loss='binary_crossentropy',
-                optimizer='rmsprop',
-                metrics=['acc'])
+  if training:
+    model.compile(loss='binary_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['acc'])
   return model
