@@ -82,7 +82,7 @@ def gen_task(context, targets, upreds):
   # Fill with random rules up to certain task
   ctx = context.copy() # Don't modify the original context
   for _ in range(ARGS.noise_size):
-    task = "gen_task" + str(R.randint(1, ARGS.task))
+    task = "gen_task" + str(R.randint(1, max(1, ARGS.task)))
     ctx.append(globals()[task](upreds))
   output(ctx, targets)
 
@@ -381,40 +381,28 @@ def gen_task12(upreds=None):
   """Logical OR with NBF: p(X):--q(X).p(X):-r(X)."""
   return logical_or(True, upreds)
 
-def gen_task0(ctx_size):
+def gen_task0():
   """Generate an ILP task example."""
-  assert ctx_size >= 1
   argc = 1
   goal= 'f'
   premise = 'b'
-  preds = r_preds(ctx_size+1)
-  consts = r_consts(ctx_size+2)
-  var = r_vars(ctx_size)
   ctx, targets = list(), list()
   # Generate according to goal <- premise
-  i, pidx = 0, 0
-  while i < ctx_size:
-    if i == 0:
-      args = choices(consts[:-1], argc)
-      # Add the successful ground case
-      ctx.append([(premise, args)])
-      targets.append(((goal, args), 1))
-      # Fail on non-matching constant
-      args = args.copy()
-      args[R.randrange(len(args))] = consts[-1]
-      ctx.append([(preds[pidx], args)])
-      pidx += 1
-      targets.append(((goal, args), 0))
-      # Add padding length dummy rule
-      vs = choices(var, argc)
-      ctx.append([(preds[pidx], vs), (preds[pidx+1], vs)])
-      i += 2
-    else:
-      # Fill with noise, ground atoms
-      ctx.append([(preds[pidx], choices(consts, argc))])
-    i += 1
-    pidx += 1
-  output(ctx, targets)
+  args = r_consts(argc)
+  # Add the successful ground case
+  ctx.append([(premise, args)])
+  targets.append(((goal, args), 1))
+  # Fail on non-matching constant
+  args = args.copy()
+  args[R.randrange(len(args))] = r_consts(1, args)[0]
+  preds = r_preds(3)
+  ctx.append([(preds[0], args)])
+  targets.append(((goal, args), 0))
+  # Add padding length dummy rule
+  vs = r_vars(argc)
+  ctx.append([(preds[1], vs), (preds[2], vs)])
+  preds.extend([goal, premise])
+  gen_task(ctx, targets, preds)
 
 if __name__ == '__main__':
   # pylint: disable=line-too-long
@@ -436,6 +424,6 @@ if __name__ == '__main__':
   task = "gen_task" + str(ARGS.task)
   for _ in range(ARGS.size):
     if ARGS.nstep:
-      nstep_deduction(ARGS.context_size, ARGS.nstep)
+      nstep_deduction(ARGS.nstep)
     else:
       globals()[task]()

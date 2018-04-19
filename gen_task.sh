@@ -10,98 +10,98 @@ shift
 
 # Task 1: ground instances
 gen_task1() {
-  $DCMD -cs 2 -cl 1 -pl 1 -t 1 -s $1
-  $DCMD -cs 4 -cl 2 -pl 2 -t 1 -s $1
-  $DCMD -cs 4 -cl 2 -pl 1 -t 1 -s $1
-  $DCMD -cs 2 -cl 1 -pl 2 -t 1 -s $1
+  $DCMD -cl 1 -pl 1 -t 1 -s $1
+  $DCMD -cl 2 -pl 2 -t 1 -s $1
+  $DCMD -cl 2 -pl 1 -t 1 -s $1
+  $DCMD -cl 1 -pl 2 -t 1 -s $1
 }
 
 # Task 2: variable binding
 gen_task2() {
-  $DCMD -cs 4 -cl 1 -pl 1 -t 2 -s $1
-  $DCMD -cs 2 -cl 2 -pl 1 -t 2 -s $1
-  $DCMD -cs 2 -cl 2 -pl 2 -t 2 -s $1
-  $DCMD -cs 4 -cl 1 -pl 2 -t 2 -s $1
+  $DCMD -cl 1 -pl 1 -t 2 -s $1
+  $DCMD -cl 2 -pl 1 -t 2 -s $1
+  $DCMD -cl 2 -pl 2 -t 2 -s $1
+  $DCMD -cl 1 -pl 2 -t 2 -s $1
 }
 
 # Task 3: single step deduction
 gen_task3() {
-  $DCMD -cs 4 -cl 1 -pl 1 -t 3 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 3 -s $1
-  $DCMD -cs 4 -cl 2 -pl 2 -t 3 -s $1
-  $DCMD -cs 5 -cl 2 -pl 1 -t 3 -s $1
+  $DCMD -cl 1 -pl 1 -t 3 -s $1
+  $DCMD -cl 1 -pl 2 -t 3 -s $1
+  $DCMD -cl 2 -pl 2 -t 3 -s $1
+  $DCMD -cl 2 -pl 1 -t 3 -s $1
 }
 
 # Task 4: double step deduction
 gen_task4() {
-  $DCMD -cs 6 -cl 1 -pl 1 -t 4 -s $1
-  $DCMD -cs 5 -cl 2 -pl 2 -t 4 -s $1
-  $DCMD -cs 5 -cl 2 -pl 1 -t 4 -s $1
-  $DCMD -cs 6 -cl 1 -pl 2 -t 4 -s $1
+  $DCMD -cl 1 -pl 1 -t 4 -s $1
+  $DCMD -cl 2 -pl 2 -t 4 -s $1
+  $DCMD -cl 2 -pl 1 -t 4 -s $1
+  $DCMD -cl 1 -pl 2 -t 4 -s $1
 }
 
 # Task 5: triple step deduction
 gen_task5() {
-  $DCMD -cs 7 -cl 1 -pl 1 -t 5 -s $1
-  $DCMD -cs 6 -cl 2 -pl 2 -t 5 -s $1
-  $DCMD -cs 6 -cl 2 -pl 1 -t 5 -s $1
-  $DCMD -cs 7 -cl 1 -pl 2 -t 5 -s $1
+  $DCMD -cl 1 -pl 1 -t 5 -s $1
+  $DCMD -cl 2 -pl 2 -t 5 -s $1
+  $DCMD -cl 2 -pl 1 -t 5 -s $1
+  $DCMD -cl 1 -pl 2 -t 5 -s $1
 }
 
 # Task 6: logical and
 gen_task6() {
-  $DCMD -cs 5 -cl 1 -pl 1 -t 6 -s $1
-  $DCMD -cs 4 -cl 2 -pl 2 -t 6 -s $1
-  $DCMD -cs 4 -cl 2 -pl 1 -t 6 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 6 -s $1
+  $DCMD -cl 1 -pl 1 -t 6 -s $1
+  $DCMD -cl 2 -pl 2 -t 6 -s $1
+  $DCMD -cl 2 -pl 1 -t 6 -s $1
+  $DCMD -cl 1 -pl 2 -t 6 -s $1
 }
 
 # Task 7: logical or
 gen_task7() {
-  $DCMD -cs 4 -cl 1 -pl 1 -t 7 -s $1
-  $DCMD -cs 5 -cl 2 -pl 2 -t 7 -s $1
-  $DCMD -cs 4 -cl 2 -pl 1 -t 7 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 7 -s $1
+  $DCMD -cl 1 -pl 1 -t 7 -s $1
+  $DCMD -cl 2 -pl 2 -t 7 -s $1
+  $DCMD -cl 2 -pl 1 -t 7 -s $1
+  $DCMD -cl 1 -pl 2 -t 7 -s $1
 }
 
 # Task 8: transitive case
 gen_task8() {
-  $DCMD -cs 6 -cl 1 -pl 1 -t 8 -s $1
-  $DCMD -cs 5 -cl 2 -pl 2 -t 8 -s $1
-  $DCMD -cs 5 -cl 2 -pl 1 -t 8 -s $1
-  $DCMD -cs 6 -cl 1 -pl 2 -t 8 -s $1
+  $DCMD -cl 1 -pl 1 -t 8 -s $1
+  $DCMD -cl 2 -pl 2 -t 8 -s $1
+  $DCMD -cl 2 -pl 1 -t 8 -s $1
+  $DCMD -cl 1 -pl 2 -t 8 -s $1
 }
 
 # Task 9: single step deduction with NBF
 gen_task9() {
-  $DCMD -cs 5 -cl 1 -pl 1 -t 9 -s $1
-  $DCMD -cs 4 -cl 2 -pl 2 -t 9 -s $1
-  $DCMD -cs 4 -cl 2 -pl 1 -t 9 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 9 -s $1
+  $DCMD -cl 1 -pl 1 -t 9 -s $1
+  $DCMD -cl 2 -pl 2 -t 9 -s $1
+  $DCMD -cl 2 -pl 1 -t 9 -s $1
+  $DCMD -cl 1 -pl 2 -t 9 -s $1
 }
 
 # Task 10: double step deduction with NBF
 gen_task10() {
-  $DCMD -cs 5 -cl 1 -pl 1 -t 10 -s $1
-  $DCMD -cs 6 -cl 2 -pl 2 -t 10 -s $1
-  $DCMD -cs 6 -cl 2 -pl 1 -t 10 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 10 -s $1
+  $DCMD -cl 1 -pl 1 -t 10 -s $1
+  $DCMD -cl 2 -pl 2 -t 10 -s $1
+  $DCMD -cl 2 -pl 1 -t 10 -s $1
+  $DCMD -cl 1 -pl 2 -t 10 -s $1
 }
 
 # Task 11: logical and with NBF
 gen_task11() {
-  $DCMD -cs 5 -cl 1 -pl 1 -t 11 -s $1
-  $DCMD -cs 6 -cl 2 -pl 2 -t 11 -s $1
-  $DCMD -cs 5 -cl 2 -pl 1 -t 11 -s $1
-  $DCMD -cs 6 -cl 1 -pl 2 -t 11 -s $1
+  $DCMD -cl 1 -pl 1 -t 11 -s $1
+  $DCMD -cl 2 -pl 2 -t 11 -s $1
+  $DCMD -cl 2 -pl 1 -t 11 -s $1
+  $DCMD -cl 1 -pl 2 -t 11 -s $1
 }
 
 # Task 12: logical or with NBF
 gen_task12() {
-  $DCMD -cs 5 -cl 1 -pl 1 -t 12 -s $1
-  $DCMD -cs 4 -cl 2 -pl 2 -t 12 -s $1
-  $DCMD -cs 4 -cl 2 -pl 1 -t 12 -s $1
-  $DCMD -cs 5 -cl 1 -pl 2 -t 12 -s $1
+  $DCMD -cl 1 -pl 1 -t 12 -s $1
+  $DCMD -cl 2 -pl 2 -t 12 -s $1
+  $DCMD -cl 2 -pl 1 -t 12 -s $1
+  $DCMD -cl 1 -pl 2 -t 12 -s $1
 }
 
 eval_single() {
@@ -118,7 +118,7 @@ eval_nstep() {
   for i in {2..38..4}; do
     F=$DDIR'test_nstep'$i.txt
     echo Writing to $F
-    $DCMD -s $SIZE -ns $i -cs $((i + 4)) -pl 2 -cl 2 > $F
+    $DCMD -s $SIZE --nstep $i -pl 2 -cl 2 > $F
   done
 }
 
