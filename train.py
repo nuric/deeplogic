@@ -27,10 +27,10 @@ def create_model(summary=False, **kwargs):
   """Create model from global arguments."""
   # Load in the model
   model = build_model(MODEL_NAME, MODEL_FILE,
-                       char_size=len(CHAR_IDX)+1,
-                       **kwargs)
+                      char_size=len(CHAR_IDX)+1,
+                      **kwargs)
   if summary:
-    nn_model.summary()
+    model.summary()
   return model
 
 def ask(context, query, model):
@@ -57,29 +57,26 @@ def train():
   try:
     if ARGS.curriculum:
       # Train in an incremental fashion
-      for i, its in zip(range(1, 6), [1, 1, 2, 3, 4]):
+      for i, its in zip(range(1, 8), [1, 1, 2, 3, 4, 4, 4]):
         print("TASK:", i, "ITERATIONS:", its)
         model = create_model(iterations=its)
-        callbacks = [C.ModelCheckpoint(filepath=MODEL_FILE,
-                                       verbose=1,
-                                       save_best_only=True,
-                                       save_weights_only=True),
-                     C.TerminateOnNaN()]
+        callbacks[0].best = np.Inf # Reset checkpoint
         ft = "data/{}_task1-{}.txt"
         traind = LogicSeq.from_file(ft.format("train", i), 32)
         testd = LogicSeq.from_file(ft.format("test", i), 32)
-        model.fit_generator(traind, epochs=i*3,
+        model.fit_generator(traind, epochs=i*2,
                             callbacks=callbacks,
                             validation_data=testd,
                             shuffle=True)
-    else:
-      model = create_model()
-      traind = LogicSeq.from_file(ARGS.trainf, 32)
-      testd = LogicSeq.from_file(ARGS.testf, 32)
-      model.fit_generator(traind, epochs=120,
-                          callbacks=callbacks,
-                          validation_data=testd,
-                          shuffle=True)
+    # Run full training
+    model = create_model()
+    callbacks[0].best = np.Inf # Reset checkpoint
+    traind = LogicSeq.from_file(ARGS.trainf, 32)
+    testd = LogicSeq.from_file(ARGS.testf, 32)
+    model.fit_generator(traind, epochs=120,
+                        callbacks=callbacks,
+                        validation_data=testd,
+                        shuffle=True)
   finally:
     print("Training terminated.")
     # Dump some examples for debugging
@@ -95,8 +92,9 @@ def train():
 
 def debug():
   """Run a single data point for debugging."""
-  import readline
-  model = create_model(training=False)
+  # Add command line history support
+  import readline # pylint: disable=unused-variable
+  model = create_model(summary=True, training=False)
   while True:
     try:
       ctx = input("CTX: ").replace(' ', '')
