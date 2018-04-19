@@ -88,13 +88,16 @@ def gen_task(context, targets, upreds):
     ctx.append(globals()[task](upreds))
   output(ctx, targets)
 
-def fail_pred(context, pred, uconsts):
+def fail_pred(context, pred, upreds, uconsts):
   """Fail a ground case predicate given context."""
-  if R.random() < 0.5:
+  # Prefer first case
+  if R.random() < 0.7:
     # The constant doesn't match
     args = pred[1].copy()
     args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
     context.append([(pred[0], args)])
+    # The predicate doesn't match
+    context.append([(r_preds(1, upreds)[0], pred[1])])
   # The predicate doesn't appear at all
 
 def gen_task1(upreds=None):
@@ -111,7 +114,7 @@ def gen_task1(upreds=None):
   # Fail case
   args = r_consts(R.randint(1, 2))
   fpred = (preds[1], args)
-  fail_pred(ctx, fpred, args)
+  fail_pred(ctx, fpred, preds, args)
   targets.append((fpred, 0))
   gen_task(ctx, targets, preds)
 
@@ -148,84 +151,71 @@ def gen_task2(upreds=None):
     targets.append(((preds[1], args), 0))
   gen_task(ctx, targets, preds)
 
-def nstep_deduction(ctx_size, steps, negation=False):
-  assert steps >= 1
-  assert ctx_size >= (steps + 3)
-  preds = r_preds(ctx_size*2+steps)
-  consts = r_consts(ctx_size+2)
-  var = r_vars(10)
+def nstep_deduction(steps, negation=False, upreds=None):
+  assert steps >= 1, "Need at least 1 step deduction."
+  preds = r_preds(2 if upreds else 3+steps, upreds or set())
+  consts = r_consts(2)
   ctx, targets = list(), list()
-  i, pidx = 0, 0
   prefix = '-' if negation else ''
-  while i < ctx_size:
-    rtype = R.randrange(2 if i == 0 else 3)
-    if rtype == 0:
-      # Double variable swap deduction rules
-      vs = R.sample(var, 2)
-      ctx.append([(preds[pidx], vs), (prefix+preds[pidx+1], vs[::-1])])
-      if i == 0:
-        # Add the n steps
-        swapc = 1
-        for j in range(steps-1):
-          vs = R.sample(var, 2)
-          toswap = R.random() < 0.5 # Do we swap again?
-          args = vs[::-1] if toswap else vs
-          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], args)])
-          swapc += int(toswap)
-        # Add the ground case
-        args = R.sample(consts[:-1], 2)
-        ctx.append([(preds[pidx+steps], args)])
-        i += steps
-        args = args if swapc % 2 == 0 else args[::-1]
-        targets.append(((preds[pidx], args), 1-int(negation)))
-        targets.append(((preds[pidx], args[::-1]), int(negation)))
-        pidx += steps-1
-      pidx += 2
-    elif rtype == 1:
-      # Double variable non-swap deduction rules
-      # Single variable deduction rules
-      argc = R.randint(1, 2)
-      vs = R.sample(var, argc)
-      ctx.append([(preds[pidx], vs), (prefix+preds[pidx+1], vs)])
-      if i == 0:
-        # Add the n steps
-        for j in range(steps-1):
-          vs = R.sample(var, argc)
-          ctx.append([(preds[pidx+j+1], vs), (preds[pidx+j+2], vs)])
-        args = choices(consts[:-1], argc)
-        # Add the ground case
-        ctx.append([(preds[pidx+steps], args)])
-        i += steps
-        targets.append(((preds[pidx], args), 1-int(negation)))
-        # Add some decoy rules to avoid shortcuts
-        ctx.append([(preds[-1], args)])
-        args = args.copy()
-        args[R.randrange(len(args))] = consts[-1]
-        ctx.append([(preds[-1], args)]) # Constant decoy rule
-        i += 2
-        # Fail on non-matching constant
-        targets.append(((preds[pidx], args), int(negation)))
-        pidx += steps-1
-      pidx += 2
-    else:
-      # Ground instances
-      ctx.append([(preds[pidx], choices(consts, 1))])
-      pidx += 1
-    prefix = ''
-    i += 1
-  output(ctx, targets)
+  if R.random() < 0.5:
+    # Double variable swap deduction rules
+    vs = r_vars(2)
+    rule = [(preds[0], vs), (prefix+preds[1], vs[::-1])]
+    if upreds:
+      return rule
+    ctx.append(rule)
+    # Add the n steps
+    swapc = 1
+    for j in range(steps-1):
+      vs = r_vars(2)
+      toswap = R.random() < 0.5 # Do we swap again?
+      args = vs[::-1] if toswap else vs
+      ctx.append([(preds[j+1], vs), (preds[j+2], args)])
+      swapc += int(toswap)
+    # Add the ground case
+    args = r_consts(2)
+    ctx.append([(preds[steps], args)])
+    args = args if swapc % 2 == 0 else args[::-1]
+    targets.append(((preds[0], args), 1-int(negation)))
+    targets.append(((preds[0], args[::-1]), int(negation)))
+    gen_task(ctx, targets, preds)
+  else:
+    # Double variable non-swap deduction rules
+    # Single variable deduction rules
+    argc = R.randint(1, 2)
+    vs = r_vars(argc)
+    rule = [(preds[0], vs), (prefix+preds[1], vs)]
+    if upreds:
+      return rule
+    ctx.append(rule)
+    # Add the n steps
+    for j in range(steps-1):
+      vs = r_vars(argc)
+      ctx.append([(preds[j+1], vs), (preds[j+2], vs)])
+    args = choices(r_consts(2), argc)
+    # Add the ground case
+    cctx = ctx.copy()
+    spred = (preds[steps], args)
+    cctx.append([spred])
+    cctx.append([(preds[-1], args)])
+    targets = [((preds[0], args), 1-int(negation))]
+    gen_task(cctx, targets, preds)
+    # Add failure case
+    fail_pred(ctx, spred, preds, args)
+    targets = [((preds[0], args), int(negation))]
+    gen_task(ctx, targets, preds)
 
-def gen_task3(ctx_size):
+def gen_task3(upreds=None):
   """Single step deduction: p(X):-q(X)."""
-  nstep_deduction(ctx_size, 1)
+  return nstep_deduction(1, upreds=upreds)
 
-def gen_task4(ctx_size):
+def gen_task4(upreds=None):
   """Double step deduction: p(X):-q(X).q(X):-r(X)."""
-  nstep_deduction(ctx_size, 2)
+  return nstep_deduction(2, upreds=upreds)
 
-def gen_task5(ctx_size):
+def gen_task5(upreds=None):
   """Triple step deduction."""
-  nstep_deduction(ctx_size, 3)
+  return nstep_deduction(3, upreds=upreds)
 
 def logical_and(ctx_size, negation=False):
   """Logical AND with optional negation: p(X):-q(X);r(X)."""
@@ -377,13 +367,13 @@ def gen_task8(ctx_size):
     i += 1
   output(ctx, targets)
 
-def gen_task9(ctx_size):
+def gen_task9(upreds=None):
   """Single step deduction with NBF: p(X):--q(X)."""
-  nstep_deduction(ctx_size, 1, True)
+  return nstep_deduction(1, negation=True, upreds=upreds)
 
-def gen_task10(ctx_size):
+def gen_task10(upreds=None):
   """Double step deduction with NBF: p(X):--q(X).q(X):-r(X)."""
-  nstep_deduction(ctx_size, 2, True)
+  return nstep_deduction(2, negation=True, upreds=upreds)
 
 def gen_task11(ctx_size):
   """Logical AND with NBF: p(X):-q(X);-r(X)."""
