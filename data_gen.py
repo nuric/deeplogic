@@ -35,7 +35,7 @@ def r_symbols(size, symbols, length, used=None):
   """Return unique random from given symbols."""
   if length == 1 and not used:
     return R.sample(symbols, size)
-  rset, used = set(), set(used)
+  rset, used = set(), set(used or [])
   while len(rset) < size:
     s = r_string(symbols, length)
     if s not in used:
@@ -88,10 +88,12 @@ def gen_task(context, targets, upreds):
     ctx.append(globals()[task](upreds))
   output(ctx, targets)
 
-def fail_pred(context, pred, upreds, uconsts):
+def fail_pred(context, pred, upreds, uconsts, psuccess=0.0):
   """Fail a ground case predicate given context."""
-  # Prefer first case
-  if R.random() < 0.7:
+  # Maybe succeed by adding to context
+  if R.random() < psuccess:
+    context.append([pred])
+  elif R.random() < 0.7:
     # The constant doesn't match
     args = pred[1].copy()
     args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
@@ -103,7 +105,7 @@ def fail_pred(context, pred, upreds, uconsts):
 def gen_task1(upreds=None):
   """Ground instances only: p(a).q(c,b)."""
   # One or two argument predicate
-  preds = r_preds(2, upreds or set())
+  preds = r_preds(2, upreds)
   args = r_consts(R.randint(1, 2))
   rule = [(preds[0], args)]
   if upreds:
@@ -120,7 +122,7 @@ def gen_task1(upreds=None):
 
 def gen_task2(upreds=None):
   """Variablised facts only: p(X).q(X,Y)."""
-  preds = r_preds(2, upreds or set())
+  preds = r_preds(2, upreds)
   ctx, targets = list(), list()
   if R.random() < 0.5:
     # Double variable same argument
@@ -153,7 +155,7 @@ def gen_task2(upreds=None):
 
 def nstep_deduction(steps, negation=False, upreds=None):
   assert steps >= 1, "Need at least 1 step deduction."
-  preds = r_preds(2 if upreds else 3+steps, upreds or set())
+  preds = r_preds(2 if upreds else 3+steps, upreds)
   consts = r_consts(2)
   ctx, targets = list(), list()
   prefix = '-' if negation else ''
@@ -217,62 +219,66 @@ def gen_task5(upreds=None):
   """Triple step deduction."""
   return nstep_deduction(3, upreds=upreds)
 
-def logical_and(ctx_size, negation=False):
+def logical_and(negation=False, upreds=None):
   """Logical AND with optional negation: p(X):-q(X);r(X)."""
-  assert ctx_size >= (4 if negation else 3)
-  preds = r_preds(ctx_size*3+1)
-  consts = r_consts(ctx_size+2)
-  var = r_vars(ctx_size)
-  ctx, targets = list(), list()
-  i, pidx = 0, 0
-  while i < ctx_size:
-    rtype = R.randrange(1 if i == 0 else 2)
-    if rtype == 0:
-      argc = R.randint(1, 2)
-      # Double variable AND with different vars
-      # Single variable AND
-      vs = R.sample(var, argc)
-      ctx.append([(preds[pidx], vs),
-                  (preds[pidx+1], vs[:1]),
-                  (preds[pidx+2], vs[1:] or vs)])
-      if i == 0:
-        ridx = R.randint(1, 2)
-        if negation:
-          # Add negation to random predicate in body
-          pred = ctx[-1][ridx]
-          ctx[-1][ridx] = ('-' + pred[0], pred[1])
-        # Add the ground cases
-        args = choices(consts[:-1], argc)
-        fidx = R.randint(1, 2)
-        # Fail either premise randomly
-        if not negation or fidx == ridx:
-          ctx.append([(preds[pidx+1], args[:1])])
-          ctx.append([(preds[pidx+2], args[1:] or args)])
-          i += 2
-        # Add the non-matching decoy
-        ctx.append([(preds[pidx+(3-ridx)], [consts[-1]])])
-        i += 1
-        # Successful case
-        targets.append(((preds[pidx], args), 1-int(negation)))
-        # Fail on non-matching constant
-        args = args.copy()
-        if negation:
-          args[min(fidx-1, len(args)-1)] = consts[-1]
-        else:
-          args[min(ridx-1, len(args)-1)] = consts[-1]
-        targets.append(((preds[pidx], args), int(negation)))
-      pidx += 3
+  preds = r_preds(3, upreds)
+  argc = R.randint(1, 2)
+  # Double variable AND with different vars
+  # Single variable AND
+  vs = r_vars(argc)
+  rule = [(preds[0], vs),
+          (preds[1], vs[:1]),
+          (preds[2], vs[1:] or vs)]
+  if upreds:
+    return rule
+  ctx = [rule]
+  # Create the ground arguments
+  args = choices(r_consts(2), argc)
+  prem1 = (preds[1], args[:1])
+  prem2 = (preds[2], args[1:] or args)
+  prems = [prem1, prem2]
+  if negation:
+    # Add negation to random predicate in body
+    ridx = R.randrange(2)
+    p, pargs = ctx[-1][ridx+1]
+    ctx[-1][ridx+1] = ('-' + p, pargs)
+    # Successful case when negation fails
+    cctx = ctx.copy()
+    fail_pred(cctx, prems[ridx], preds, args)
+    cctx.append([prems[1-ridx]])
+    targets = [((preds[0], args), 1)]
+    gen_task(cctx, targets, preds)
+    # Fail one premise randomly
+    fidx = R.randrange(2)
+    if ridx == fidx:
+      # To fail negation add ground instance
+      ctx.append([prems[ridx]])
+      # Succeed other with some probability
+      fail_pred(ctx, prems[1-ridx], preds, args, 0.8)
     else:
-      # Some other ground cases
-      k = 2 if R.random() < 0.5 else 1
-      ctx.append([(preds[pidx], choices(consts, k))])
-      pidx += 1
-    i += 1
-  output(ctx, targets)
+      # Fail non-negated premise
+      fail_pred(ctx, prems[1-ridx], preds, args)
+      # Still succeed negation
+      fail_pred(ctx, prems[ridx], preds, args)
+    targets = [((preds[0], args), 0)]
+    gen_task(ctx, targets, preds)
+  else:
+    # Create successful context
+    cctx = ctx.copy()
+    cctx.extend([[p] for p in prems])
+    targets = [((preds[0], args), 1)]
+    gen_task(cctx, targets, preds)
+    # Fail one premise randomly
+    fidx = R.randrange(2)
+    fail_pred(ctx, prems[fidx], preds, args)
+    # Succeed the other with some probability
+    fail_pred(ctx, prems[1-fidx], preds, args, 0.8)
+    targets = [((preds[0], args), 0)]
+    gen_task(ctx, targets, preds)
 
-def gen_task6(ctx_size):
+def gen_task6(upreds=None):
   """Logical AND: p(X):-q(X);r(X)."""
-  logical_and(ctx_size)
+  return logical_and(upreds=upreds)
 
 def logical_or(ctx_size, negation=False):
   """Logical OR with optional negation: p(X):-q(X).p(X):-r(X)."""
@@ -369,15 +375,15 @@ def gen_task8(ctx_size):
 
 def gen_task9(upreds=None):
   """Single step deduction with NBF: p(X):--q(X)."""
-  return nstep_deduction(1, negation=True, upreds=upreds)
+  return nstep_deduction(1, True, upreds)
 
 def gen_task10(upreds=None):
   """Double step deduction with NBF: p(X):--q(X).q(X):-r(X)."""
-  return nstep_deduction(2, negation=True, upreds=upreds)
+  return nstep_deduction(2, True, upreds)
 
-def gen_task11(ctx_size):
+def gen_task11(upreds=None):
   """Logical AND with NBF: p(X):-q(X);-r(X)."""
-  logical_and(ctx_size, True)
+  return logical_and(True, upreds)
 
 def gen_task12(ctx_size):
   """Logical OR with NBF: p(X):--q(X).p(X):-r(X)."""
