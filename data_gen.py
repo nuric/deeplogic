@@ -81,11 +81,11 @@ def gen_task(context, targets, upreds):
   """Fill context with random preds and output program."""
   n_tofill = ARGS.context_size - len(context)
   assert n_tofill >= 0, "Task context requires larger size."
-  # Random one or two argument ground noise
-  preds, consts = r_preds(n_tofill, upreds), r_consts(n_tofill)
+  # Fill with random rules up to certain task
   ctx = context.copy() # Don't modify the original context
-  for p in preds:
-    ctx.append([(p, choices(consts, R.randint(1, 2))])
+  for _ in range(n_tofill):
+    task = "gen_task" + str(R.randint(1, ARGS.task))
+    ctx.append(globals()[task](upreds))
   output(ctx, targets)
 
 def fail_pred(context, pred, uconsts):
@@ -97,12 +97,15 @@ def fail_pred(context, pred, uconsts):
     context.append([(pred[0], args)])
   # The predicate doesn't appear at all
 
-def gen_task1():
+def gen_task1(upreds=None):
   """Ground instances only: p(a).q(c,b)."""
   # One or two argument predicate
-  preds = r_preds(2)
+  preds = r_preds(2, upreds or set())
   args = r_consts(R.randint(1, 2))
-  ctx = [[(preds[0], args)]]
+  rule = [(preds[0], args)]
+  if upreds:
+    return rule
+  ctx = [rule]
   # Successful case when query appears in context
   targets = [(ctx[0][0], 1)]
   # Fail case
@@ -112,43 +115,38 @@ def gen_task1():
   targets.append((fpred, 0))
   gen_task(ctx, targets, preds)
 
-def gen_task2(ctx_size):
+def gen_task2(upreds=None):
   """Variablised facts only: p(X).q(X,Y)."""
-  assert ctx_size >= 1
-  preds = r_preds(ctx_size+1)
-  consts = r_consts(ctx_size+1)
-  var = r_vars(ctx_size)
+  preds = r_preds(2, upreds or set())
   ctx, targets = list(), list()
-  for i in range(ctx_size):
-    rtype = R.randrange(2 if i == 0 else 3)
-    if rtype == 0:
-      # Double variable same argument
-      v = R.choice(var)
-      ctx.append([(preds[i], [v, v])])
-      if i == 0:
-        # Successful double variable grounding
-        c = R.choice(consts)
-        targets.append(((preds[i], [c, c]), 1))
-        # Fail on non-unique variable grounding
-        targets.append(((preds[i], R.sample(consts, 2)), 0))
-    elif rtype == 1:
-      # Double variable different argument
-      # Single variable argument
-      argc = R.randint(1, 2)
-      args = R.sample(var, argc)
-      ctx.append([(preds[i], args)])
-      if i == 0:
-        # Successful unique argument grounding
-        args = choices(consts, argc)
-        targets.append(((preds[i], args), 1))
-        # Fail on out of context predicate with same arguments
-        targets.append(((preds[-1], args), 0))
-    else:
-      # Some ground instances
-      k = 2 if R.random() < 0.5 else 1
-      pred = (preds[i], choices(consts[:-1], k))
-      ctx.append([pred])
-  output(ctx, targets)
+  if R.random() < 0.5:
+    # Double variable same argument
+    v = r_vars(1)[0]
+    rule = [(preds[0], [v, v])]
+    if upreds:
+      return rule
+    ctx.append(rule)
+    # Successful double variable grounding
+    cs = r_consts(2)
+    c = R.choice(cs)
+    targets.append(((preds[0], [c, c]), 1))
+    # Fail on non-unique variable grounding
+    targets.append(((preds[0], cs), 0))
+  else:
+    # Double variable different argument
+    # Single variable argument
+    argc = R.randint(1, 2)
+    args = r_vars(argc)
+    rule = [(preds[0], args)]
+    if upreds:
+      return rule
+    ctx.append(rule)
+    # Successful unique argument grounding
+    args = choices(r_consts(2), argc)
+    targets.append(((preds[0], args), 1))
+    # Fail on out of context predicate with same arguments
+    targets.append(((preds[1], args), 0))
+  gen_task(ctx, targets, preds)
 
 def nstep_deduction(ctx_size, steps, negation=False):
   assert steps >= 1
@@ -434,7 +432,7 @@ if __name__ == '__main__':
   # pylint: disable=line-too-long
   # Arguments
   parser = argparse.ArgumentParser(description="Generate logic program data.")
-  parser.add_argument("-t", "--task", default="1", help="The task to generate.")
+  parser.add_argument("-t", "--task", default=1, type=int, help="The task to generate.")
   parser.add_argument("-s", "--size", default=1, type=int, help="Number of programs to generate.")
   # Configuration parameters
   parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of program context.")
@@ -447,7 +445,7 @@ if __name__ == '__main__':
   ARGS = parser.parse_args()
 
   # Generate given task
-  task = "gen_task" + ARGS.task
+  task = "gen_task" + str(ARGS.task)
   for _ in range(ARGS.size):
     if ARGS.nstep:
       nstep_deduction(ARGS.context_size, ARGS.nstep)
