@@ -79,11 +79,9 @@ def output(context, targets):
 
 def gen_task(context, targets, upreds):
   """Fill context with random preds and output program."""
-  n_tofill = ARGS.context_size - len(context)
-  assert n_tofill >= 0, "Task context requires larger size."
   # Fill with random rules up to certain task
   ctx = context.copy() # Don't modify the original context
-  for _ in range(n_tofill):
+  for _ in range(ARGS.noise_size):
     task = "gen_task" + str(R.randint(1, ARGS.task))
     ctx.append(globals()[task](upreds))
   output(ctx, targets)
@@ -99,7 +97,9 @@ def fail_pred(context, pred, upreds, uconsts, psuccess=0.0):
     args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
     context.append([(pred[0], args)])
     # The predicate doesn't match
-    context.append([(r_preds(1, upreds)[0], pred[1])])
+    p = r_preds(1, upreds)[0]
+    upreds.append(p)
+    context.append([(p, pred[1])])
   # The predicate doesn't appear at all
 
 def gen_task1(upreds=None):
@@ -280,98 +280,90 @@ def gen_task6(upreds=None):
   """Logical AND: p(X):-q(X);r(X)."""
   return logical_and(upreds=upreds)
 
-def logical_or(ctx_size, negation=False):
+def logical_or(negation=False, upreds=None):
   """Logical OR with optional negation: p(X):-q(X).p(X):-r(X)."""
-  assert ctx_size >= 4
-  preds = r_preds(ctx_size*3+1)
-  consts = r_consts(ctx_size+2)
-  var = r_vars(ctx_size)
-  ctx, targets = list(), list()
-  i, pidx = 0, 0
-  while i < ctx_size:
-    rtype = R.randrange(1 if i == 0 else 2)
-    if rtype == 0:
-      # Double or single variable OR
-      argc = R.randint(1, 2)
-      vs = R.sample(var, argc)
-      swap = R.random() < 0.5
-      prefix = '-' if negation and i == 0 else ''
-      ctx.append([(preds[pidx], vs), (prefix + preds[pidx+1], vs if swap else vs[::-1])])
-      if i == 0:
-        # Add the extra branching rule
-        ctx.append([(preds[pidx], vs), (preds[pidx+2], vs)])
-        # Add ground cases
-        if negation:
-          args = R.sample(consts[:-1], argc*2)
-        else:
-          args = choices(consts[:-1], argc*2)
-        argso = args[len(args)//2:]
-        args = args[:len(args)//2]
-        ctx.append([(preds[pidx+1], args if swap else args[::-1])])
-        ctx.append([(preds[pidx], argso)])
-        i += 3
-        if R.random() < 0.2 and not negation:
-          # Shortcut case
-          targets.append(((preds[pidx], argso), 1))
-        else:
-          # Follow only one of the rules
-          targets.append(((preds[pidx], args), 1-int(negation)))
-        # Fail on non-matching constant
-        args = args.copy()
-        args[R.randrange(len(args))] = consts[-1]
-        targets.append(((preds[pidx], args), int(negation)))
-      pidx += 3
+  preds = r_preds(3, upreds)
+  # Double or single variable OR
+  argc = R.randint(1, 2)
+  vs = r_vars(argc)
+  swap = R.random() < 0.5
+  prefix = '-' if negation else ''
+  rule = [(preds[0], vs), (prefix + preds[1], vs[::-1] if swap else vs)]
+  if upreds:
+    return rule
+  ctx = list()
+  ctx.append(rule)
+  # Add the extra branching rules
+  ctx.append([(preds[0], vs), (preds[2], vs)])
+  args = r_consts(argc)
+  ctx.append([(preds[0], args)])
+  if swap and argc == 2:
+    args = r_consts(argc, args)
+    ctx.append([(preds[1], args)])
+    args = args[::-1] if swap else args
+    targets = [((preds[0], args), 1-int(negation)),
+               ((preds[0], args[::-1]), int(negation))]
+    gen_task(ctx, targets, preds)
+  elif not negation and R.random() < 0.2:
+    # Sneaky shorcut case
+    targets = [((preds[0], args), 1)]
+    gen_task(ctx, targets, preds)
+    del ctx[-1]
+    targets = [((preds[0], args), 0)]
+    gen_task(ctx, targets, preds)
+  else:
+    # Succeed either from them
+    prems = [(preds[i], r_consts(argc, args)) for i in range(1, 3)]
+    sidx = R.randrange(2)
+    cctx = ctx.copy()
+    if negation and sidx == 0:
+      # Succeed by failing negation
+      fail_pred(cctx, prems[0], preds, prems[0][1])
+      # Possibly succeed other prem
+      fail_pred(cctx, prems[1], preds, prems[1][1], 0.2)
     else:
-      # Some other ground cases
-      k = 2 if R.random() < 0.5 else 1
-      ctx.append([(preds[pidx], choices(consts, k))])
-      pidx += 1
-    i += 1
-  output(ctx, targets)
+      # Succeed by adding ground case
+      cctx.append([prems[sidx]])
+      # Possibly succeed other prem
+      fail_pred(cctx, prems[1-sidx], preds, prems[1-sidx][1], 0.2)
+    targets = [((preds[0], prems[sidx][1]), 1)]
+    gen_task(cctx, targets, preds)
+    # Fail both
+    fail_pred(ctx, prems[0], preds, prems[0][1], int(negation))
+    fail_pred(ctx, prems[1], preds, prems[1][1])
+    targets = [((preds[0], prems[sidx][1]), 0)]
+    gen_task(ctx, targets, preds)
 
-def gen_task7(ctx_size):
+
+def gen_task7(upreds=None):
   """Logical OR: p(X):-q(X).p(X):-r(X)."""
-  logical_or(ctx_size)
+  return logical_or(upreds=upreds)
 
-def gen_task8(ctx_size):
+def gen_task8(upreds=None):
   """Transitive case: p(X,Y):-q(X,Z);r(Z,Y)."""
-  assert ctx_size >= 5
-  preds = r_preds(ctx_size*3+1)
-  consts = r_consts(ctx_size+2)
-  var = r_vars(ctx_size)
-  ctx, targets = list(), list()
-  i, pidx = 0, 0
-  while i < ctx_size:
-    rtype = R.randrange(1 if i == 0 else 2)
-    if rtype == 0:
-      # Existential variable with single choice
-      vs = R.sample(var, 3)
-      ctx.append([(preds[pidx], [vs[0], vs[2]]),
-                  (preds[pidx+1], vs[:2]),
-                  (preds[pidx+2], vs[1:])])
-      if i == 0:
-        # Add matching ground cases
-        args = choices(consts[:-1], 3)
-        ctx.append([(preds[pidx+1], args[:2])])
-        ctx.append([(preds[pidx+2], args[1:])])
-        # Add non-matching ground cases
-        argso = choices(consts[:-1], 3)
-        argso.insert(R.randint(1, 2), consts[-1])
-        ctx.append([(preds[pidx+1], argso[:2])])
-        ctx.append([(preds[pidx+2], argso[2:])])
-        i += 4
-        # Successful case
-        targets.append(((preds[pidx], [args[0], args[2]]), 1))
-        # Fail on half-matching existential
-        targets.append(((preds[pidx], [argso[0], argso[3]]), 0))
-      pidx += 3
-    else:
-      # Some other ground cases
-      k = 2 if R.random() < 0.5 else 1
-      ctx.append([(preds[pidx], choices(consts, k))])
-      pidx += 1
-    i += 1
-  output(ctx, targets)
+  preds = r_preds(3, upreds)
+  # Existential variable with single choice
+  vs = r_vars(3)
+  rule = [(preds[0], [vs[0], vs[2]]),
+          (preds[1], vs[:2]),
+          (preds[2], vs[1:])]
+  if upreds:
+    return rule
+  ctx = [rule]
+  # Add matching ground cases
+  args = r_consts(3)
+  ctx.append([(preds[1], args[:2])])
+  ctx.append([(preds[2], args[1:])])
+  # Add non-matching ground cases
+  argso = r_consts(3)
+  argso.insert(R.randint(1, 2), r_consts(1, argso)[0])
+  ctx.append([(preds[1], argso[:2])])
+  ctx.append([(preds[2], argso[2:])])
+  # Successful case
+  # Fail on half-matching existential
+  targets = [((preds[0], [args[0], args[2]]), 1),
+             ((preds[0], [argso[0], argso[3]]), 0)]
+  gen_task(ctx, targets, preds)
 
 def gen_task9(upreds=None):
   """Single step deduction with NBF: p(X):--q(X)."""
@@ -385,9 +377,9 @@ def gen_task11(upreds=None):
   """Logical AND with NBF: p(X):-q(X);-r(X)."""
   return logical_and(True, upreds)
 
-def gen_task12(ctx_size):
+def gen_task12(upreds=None):
   """Logical OR with NBF: p(X):--q(X).p(X):-r(X)."""
-  logical_or(ctx_size, True)
+  return logical_or(True, upreds)
 
 def gen_task0(ctx_size):
   """Generate an ILP task example."""
@@ -431,13 +423,13 @@ if __name__ == '__main__':
   parser.add_argument("-t", "--task", default=1, type=int, help="The task to generate.")
   parser.add_argument("-s", "--size", default=1, type=int, help="Number of programs to generate.")
   # Configuration parameters
-  parser.add_argument("-cs", "--context_size", default=6, type=int, help="Size of program context.")
+  parser.add_argument("-ns", "--noise_size", default=2, type=int, help="Size of added noise rules.")
   parser.add_argument("-cl", "--constant_length", default=1, type=int, help="Length of constants.")
   parser.add_argument("-vl", "--variable_length", default=1, type=int, help="Length of variables.")
   parser.add_argument("-pl", "--predicate_length", default=1, type=int, help="Length of predicates.")
   parser.add_argument("-sf", "--shuffle_context", action="store_true", help="Shuffle context before output.")
   # Task specific options
-  parser.add_argument("-ns", "--nstep", type=int, help="Generate nstep deduction programs.")
+  parser.add_argument("--nstep", type=int, help="Generate nstep deduction programs.")
   ARGS = parser.parse_args()
 
   # Generate given task
