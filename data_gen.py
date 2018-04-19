@@ -242,18 +242,23 @@ def logical_and(ctx_size, negation=False):
           ctx[-1][ridx] = ('-' + pred[0], pred[1])
         # Add the ground cases
         args = choices(consts[:-1], argc)
-        ctx.append([(preds[pidx+1], args[:1])])
-        ctx.append([(preds[pidx+2], args[1:] or args)])
-        i += 2
-        if not negation or argc == 1:
-          # Add the non-matching decoy
-          ctx.append([(preds[pidx+(3-ridx)], [consts[-1]])])
-          i += 1
+        fidx = R.randint(1, 2)
+        # Fail either premise randomly
+        if not negation or fidx == ridx:
+          ctx.append([(preds[pidx+1], args[:1])])
+          ctx.append([(preds[pidx+2], args[1:] or args)])
+          i += 2
+        # Add the non-matching decoy
+        ctx.append([(preds[pidx+(3-ridx)], [consts[-1]])])
+        i += 1
         # Successful case
         targets.append(((preds[pidx], args), 1-int(negation)))
         # Fail on non-matching constant
         args = args.copy()
-        args[min(ridx-1, len(args)-1)] = consts[-1]
+        if negation:
+          args[min(fidx-1, len(args)-1)] = consts[-1]
+        else:
+          args[min(ridx-1, len(args)-1)] = consts[-1]
         targets.append(((preds[pidx], args), int(negation)))
       pidx += 3
     else:
