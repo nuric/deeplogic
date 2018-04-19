@@ -31,26 +31,28 @@ def r_string(symbols, length):
   return ''.join(R.choice(symbols)
                  for _ in range(length))
 
-def r_symbols(size, symbols, length):
+def r_symbols(size, symbols, length, used=None):
   """Return unique random from given symbols."""
-  if length == 1:
+  if length == 1 and not used:
     return R.sample(symbols, size)
-  rset = set()
+  rset, used = set(), set(used)
   while len(rset) < size:
-    rset.add(r_string(symbols, length))
+    s = r_string(symbols, length)
+    if s not in used:
+      rset.add(s)
   return list(rset)
 
-def r_consts(size):
+def r_consts(size, used=None):
   """Return size many unique constants."""
-  return r_symbols(size, CONST_SYMBOLS, ARGS.constant_length)
+  return r_symbols(size, CONST_SYMBOLS, ARGS.constant_length, used)
 
-def r_vars(size):
+def r_vars(size, used=None):
   """Return size many unique variables."""
-  return r_symbols(size, VAR_SYMBOLS, ARGS.variable_length)
+  return r_symbols(size, VAR_SYMBOLS, ARGS.variable_length, used)
 
-def r_preds(size):
+def r_preds(size, used=None):
   """Return size many unique predicates."""
-  return r_symbols(size, PRED_SYMBOLS, ARGS.predicate_length)
+  return r_symbols(size, PRED_SYMBOLS, ARGS.predicate_length, used)
 
 def write_p(pred):
   """Format single predicate tuple into string."""
@@ -75,29 +77,40 @@ def output(context, targets):
   for t, v in targets:
     print(TARGET_T.format(write_r([t]), v))
 
-def gen_task1(ctx_size):
+def gen_task(context, targets, upreds):
+  """Fill context with random preds and output program."""
+  n_tofill = ARGS.context_size - len(context)
+  assert n_tofill >= 0, "Task context requires larger size."
+  # Random one or two argument ground noise
+  preds, consts = r_preds(n_tofill, upreds), r_consts(n_tofill)
+  ctx = context.copy() # Don't modify the original context
+  for p in preds:
+    ctx.append([(p, choices(consts, R.randint(1, 2))])
+  output(ctx, targets)
+
+def fail_pred(context, pred, uconsts):
+  """Fail a ground case predicate given context."""
+  if R.random() < 0.5:
+    # The constant doesn't match
+    args = pred[1].copy()
+    args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
+    context.append([(pred[0], args)])
+  # The predicate doesn't appear at all
+
+def gen_task1():
   """Ground instances only: p(a).q(c,b)."""
-  assert ctx_size >= 1
-  preds = r_preds(ctx_size+1)
-  consts = r_consts(ctx_size+1)
-  # Create context with both single and double arguments
-  ctx = list()
-  for i in range(ctx_size):
-    k = 2 if R.random() < 0.5 else 1
-    ctx.append([(preds[i], choices(consts[:-1], k))])
+  # One or two argument predicate
+  preds = r_preds(2)
+  args = r_consts(R.randint(1, 2))
+  ctx = [[(preds[0], args)]]
   # Successful case when query appears in context
   targets = [(ctx[0][0], 1)]
-  # What are possible failures
-  if R.random() < 0.5:
-    # Out of context constant fails
-    pred = R.choice(ctx)[0]
-    args = pred[1].copy()
-    args[R.randrange(len(args))] = consts[-1]
-    targets.append(((pred[0], args), 0))
-  else:
-    # Out of context predicate fails
-    targets.append(((preds[-1], choices(consts[:-1], 1)), 0))
-  output(ctx, targets)
+  # Fail case
+  args = r_consts(R.randint(1, 2))
+  fpred = (preds[1], args)
+  fail_pred(ctx, fpred, args)
+  targets.append((fpred, 0))
+  gen_task(ctx, targets, preds)
 
 def gen_task2(ctx_size):
   """Variablised facts only: p(X).q(X,Y)."""
@@ -439,4 +452,4 @@ if __name__ == '__main__':
     if ARGS.nstep:
       nstep_deduction(ARGS.context_size, ARGS.nstep)
     else:
-      globals()[task](ARGS.context_size)
+      globals()[task]()
