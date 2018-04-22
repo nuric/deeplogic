@@ -150,8 +150,8 @@ all() {
 
 custom() {
   echo "Generating certain tasks only..."
-  F=$DDIR'train.txt'
-  TF=$DDIR'test.txt'
+  F=$DDIR'train_custom.txt'
+  TF=$DDIR'test_custom.txt'
   echo Writing to $F $TF
   rm -f $F $TF
   for i in "$@"; do

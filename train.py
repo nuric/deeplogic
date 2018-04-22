@@ -15,6 +15,7 @@ parser.add_argument("--trainf", default="data/train.txt", help="Training data fi
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
+parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -69,7 +70,7 @@ def train():
                             validation_data=testd,
                             shuffle=True)
     # Run full training
-    model = create_model()
+    model = create_model(iterations=ARGS.iterations)
     callbacks[0].best = np.Inf # Reset checkpoint
     traind = LogicSeq.from_file(ARGS.trainf, 32)
     testd = LogicSeq.from_file(ARGS.testf, 32)
@@ -94,7 +95,7 @@ def debug():
   """Run a single data point for debugging."""
   # Add command line history support
   import readline # pylint: disable=unused-variable
-  model = create_model(summary=True, training=False)
+  model = create_model(summary=True, iterations=ARGS.iterations, training=False)
   while True:
     try:
       ctx = input("CTX: ").replace(' ', '')
