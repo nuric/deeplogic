@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(description="Evaluate logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
 parser.add_argument("--outf", default="plot.png", help="Plot output file.")
+parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -27,6 +28,7 @@ def evaluate():
   """Evaluate model on each test data."""
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
+                      iterations=ARGS.iterations,
                       training=True)
   model.summary()
   for i in range(1, 13):
@@ -101,6 +103,7 @@ def plot_attention():
   """Plot attention vector over given context."""
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
+                      iterations=ARGS.iterations,
                       training=False)
   model.summary()
   ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).",
