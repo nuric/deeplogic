@@ -16,6 +16,7 @@ parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
 parser.add_argument("--outf", default="plot.png", help="Plot output file.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
+parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Evaluation batch_size.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -32,7 +33,7 @@ def evaluate():
                       training=True)
   model.summary()
   for i in range(1, 13):
-    dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), 32)
+    dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size)
     print(model.evaluate_generator(dgen))
 
 def get_pca(context, model):

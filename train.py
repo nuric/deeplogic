@@ -16,6 +16,7 @@ parser.add_argument("--testf", default="data/test.txt", help="Testing data file.
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
+parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Training batch_size.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -58,13 +59,13 @@ def train():
   try:
     if ARGS.curriculum:
       # Train in an incremental fashion
-      for i, its in zip(range(1, 8), [1, 1, 2, 3, 4, 4, 4]):
+      for i, its in zip(range(1, 6), [1, 1, 2, 3, 4]):
         print("TASK:", i, "ITERATIONS:", its)
         model = create_model(iterations=its)
         callbacks[0].best = np.Inf # Reset checkpoint
         ft = "data/{}_task1-{}.txt"
-        traind = LogicSeq.from_file(ft.format("train", i), 32)
-        testd = LogicSeq.from_file(ft.format("test", i), 32)
+        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size)
+        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size)
         model.fit_generator(traind, epochs=i*2,
                             callbacks=callbacks,
                             validation_data=testd,
@@ -72,8 +73,8 @@ def train():
     # Run full training
     model = create_model(iterations=ARGS.iterations)
     callbacks[0].best = np.Inf # Reset checkpoint
-    traind = LogicSeq.from_file(ARGS.trainf, 32)
-    testd = LogicSeq.from_file(ARGS.testf, 32)
+    traind = LogicSeq.from_file(ARGS.trainf, ARGS.batch_size)
+    testd = LogicSeq.from_file(ARGS.testf, ARGS.batch_size)
     model.fit_generator(traind, epochs=120,
                         callbacks=callbacks,
                         validation_data=testd,
