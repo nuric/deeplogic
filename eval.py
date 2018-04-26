@@ -54,18 +54,14 @@ def plot_single_preds():
                       pca=True)
   model.summary()
   syms = "abcdefghijklmnopqrstuvwxyz"
-  ctx, splits, colours = list(), list(), list()
+  ctx, splits = list(), list()
   # plt.figure(figsize=(8,8))
-  for p in ['p', 'q', 'd']:
-    col = np.random.rand(3)
+  for p in ['p', 'q', 'r']:
     for c in syms:
-      colours.append(col)
       ctx.append("{}({}).".format(p,c))
     splits.append(len(ctx))
-  for c in ['a', 'y', 'd']:
-    col = np.random.rand(3)
+  for c in ['a', 'b', 'c']:
     for p in syms:
-      colours.append(col)
       ctx.append("{}({}).".format(p,c))
     splits.append(len(ctx))
   embds = get_pca(ctx, model)
@@ -77,27 +73,39 @@ def plot_single_preds():
     if np.random.rand() < 0.1:
       plt.annotate(pred, xy=(x, y), xytext=(0, 10), textcoords='offset points')
   # plt.axis('scaled')
-  plt.title("Single Character Predicates")
-  plt.legend(["p(?).", "q(?).", "d(?).", "?(a).", "?(y).", "?(d)."])
+  # plt.title("Single Character Predicates")
+  plt.legend(["p(?).", "q(?).", "r(?).", "?(a).", "?(b).", "?(c)."])
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
-def plot_custom_preds():
-  """Plot embeddings of custom predicates."""
+def plot_struct_preds():
+  """Plot embeddings of different structural predicates."""
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
                       pca=True)
   model.summary()
-  ctx = ("p(a).p(aa).p(a,b).p(b).p(X).p(X,Y)."
-         "q(a).q(aa).q(a,b).q(b).q(X).q(X,Y)."
-         "r(a).r(aa).r(a,b).r(b).r(X).r(X,Y)."
-         "s(a).s(aa).s(a,b).s(b).s(X).s(X,Y)."
-         "t(a).t(aa).t(a,b).t(b).t(X).t(X,Y).")
-  ctx = [r + '.' for r in ctx.split('.')[:-1]]
+  ctx, splits = list(), list()
+  ps = ['w', 'q', 'r', 's', 't', 'v', 'u', 'p']
+  temps = ["{}(X,Y).", "{}(A,A).", "{}(X).", "{}(Z).",
+           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
+  for t in temps:
+    for p in ps:
+      ctx.append(t.format(p))
+    splits.append(len(ctx))
   embds = get_pca(ctx, model)
-  plt.scatter(embds[:, 0], embds[:, 1])
-  for pred, x, y in zip(ctx, embds[:, 0], embds[:, 1]):
-    plt.annotate(pred, xy=(x, y), xytext=(0, 10), textcoords='offset points')
-  plt.title("Predicate Embeddings")
+  prev_sp = 0
+  for sp in splits:
+    plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
+    prev_sp = sp
+  def offset(x):
+    """Calculate offset for annotation."""
+    r = np.random.randint(10, 30)
+    return -r if x > 0 else r
+  for sp in splits:
+    pred, x, y = ctx[sp-1], embds[sp-1, 0], embds[sp-1, 1]
+    xf, yf = offset(x), offset(y)
+    plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
+  # plt.title("Predicate Embeddings")
+  plt.legend([t.replace("{}", '?') for t in temps])
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
 def plot_attention():
