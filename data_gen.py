@@ -199,7 +199,9 @@ def nstep_deduction(steps, negation=False, upreds=None):
     cctx = ctx.copy()
     spred = (preds[steps], args)
     cctx.append([spred])
-    cctx.append([(preds[-1], args)])
+    if R.random() < 0.5:
+      # Add predicate decoy
+      cctx.append([(preds[-1], args)])
     targets = [((preds[0], args), 1-int(negation))]
     gen_task(cctx, targets, preds)
     # Add failure case
