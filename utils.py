@@ -8,11 +8,12 @@ from data_gen import CHAR_IDX
 
 class LogicSeq(Sequence):
   """Sequence generator for G-Research data."""
-  def __init__(self, data, batch_size, train=True, shuffle=True):
+  def __init__(self, data, batch_size, train=True, shuffle=True, pad=False):
     self.data = data or list()
     self.batch_size = batch_size
     self.train = train
     self.shuffle = shuffle
+    self.pad = pad
 
   def __len__(self):
     return int(np.ceil(len(self.data) / self.batch_size))
@@ -29,6 +30,8 @@ class LogicSeq(Sequence):
     for ctx, q, t in dpoints:
       if self.shuffle:
         np.random.shuffle(ctx)
+      if self.pad:
+        ctx.append(".") # Append a blank rule
       rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
                for r in ctx]
       rules = [[[CHAR_IDX[c] for c in pred]
@@ -57,7 +60,7 @@ class LogicSeq(Sequence):
     return xs
 
   @classmethod
-  def from_file(cls, fname, batch_size):
+  def from_file(cls, fname, batch_size, pad=False):
     """Load logic programs from given fname."""
     dpoints = list()
     with open(fname) as f:
@@ -74,5 +77,5 @@ class LogicSeq(Sequence):
             isnew_ctx = False
           ctx.append(l)
     print("Example data points from:", fname)
-    print(dpoints[:4])
-    return cls(dpoints, batch_size)
+    print(dpoints[-4:])
+    return cls(dpoints, batch_size, pad=pad)

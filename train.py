@@ -13,10 +13,12 @@ parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
+parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Training batch_size.")
+parser.add_argument("-p", "--pad", action="store_true", help="Pad context with blank rule.")
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
@@ -25,13 +27,13 @@ MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
 
-def create_model(summary=False, **kwargs):
+def create_model(**kwargs):
   """Create model from global arguments."""
   # Load in the model
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
                       **kwargs)
-  if summary:
+  if ARGS.summary:
     model.summary()
   return model
 
@@ -39,7 +41,7 @@ def ask(context, query, model):
   """Predict output for given context and query."""
   rs = context.split('.')[:-1] # split rules
   rr = [r + '.' for r in rs]
-  dgen = LogicSeq([(rr, query, 0)], 1, False, False)
+  dgen = LogicSeq([(rr, query, 0)], 1, False, False, pad=ARGS.pad)
   # print(dgen[0])
   out = model.predict_generator(dgen)
   # print("SHAPES:", [o.shape for o in out])
@@ -64,8 +66,8 @@ def train():
         model = create_model(iterations=its)
         callbacks[0].best = np.Inf # Reset checkpoint
         ft = "data/{}_task1-{}.txt"
-        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size)
-        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size)
+        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size, pad=ARGS.pad)
+        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size, pad=ARGS.pad)
         model.fit_generator(traind, epochs=i*2,
                             callbacks=callbacks,
                             validation_data=testd,
@@ -73,8 +75,8 @@ def train():
     # Run full training
     model = create_model(iterations=ARGS.iterations)
     callbacks[0].best = np.Inf # Reset checkpoint
-    traind = LogicSeq.from_file(ARGS.trainf, ARGS.batch_size)
-    testd = LogicSeq.from_file(ARGS.testf, ARGS.batch_size)
+    traind = LogicSeq.from_file(ARGS.trainf, ARGS.batch_size, pad=ARGS.pad)
+    testd = LogicSeq.from_file(ARGS.testf, ARGS.batch_size, pad=ARGS.pad)
     model.fit_generator(traind, epochs=120,
                         callbacks=callbacks,
                         validation_data=testd,
@@ -96,7 +98,7 @@ def debug():
   """Run a single data point for debugging."""
   # Add command line history support
   import readline # pylint: disable=unused-variable
-  model = create_model(summary=True, iterations=ARGS.iterations, training=False)
+  model = create_model(iterations=ARGS.iterations, training=False)
   while True:
     try:
       ctx = input("CTX: ").replace(' ', '')
@@ -126,8 +128,8 @@ def ilp(training=True):
                       num_preds=1,
                       pred_len=4)
   model.summary()
-  traind = LogicSeq.from_file("data/ilp_train.txt", 32)
-  testd = LogicSeq.from_file("data/ilp_test.txt", 32)
+  traind = LogicSeq.from_file("data/ilp_train.txt", ARGS.batch_size, pad=ARGS.pad)
+  testd = LogicSeq.from_file("data/ilp_test.txt", ARGS.batch_size, pad=ARGS.pad)
   if training:
     # Setup callbacks
     callbacks = [C.ModelCheckpoint(filepath="weights/ilp.h5",
