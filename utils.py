@@ -76,6 +76,7 @@ class LogicSeq(Sequence):
             ctx = list()
             isnew_ctx = False
           ctx.append(l)
+    np.random.shuffle(dpoints)
     print("Example data points from:", fname)
-    print(dpoints[-4:])
+    print(dpoints[:4])
     return cls(dpoints, batch_size, pad=pad)

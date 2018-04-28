@@ -1,5 +1,6 @@
 """Evaluation module for logic-memnn"""
 import argparse
+from glob import glob
 import numpy as np
 from sklearn.decomposition import PCA
 import matplotlib
@@ -36,6 +37,36 @@ def evaluate():
   for i in range(1, 13):
     dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
     print(model.evaluate_generator(dgen))
+
+def eval_nstep():
+  """Evaluate model on nstep deduction."""
+  # Load available models
+  models = [(mf.split('/')[1].split('.')[0], mf)
+            for mf in glob("weights/*.h5")]
+  print("Found models:", models)
+  # Evaluate every model on test data
+  results = {m[0]:list() for m in models}
+  arange = np.arange(1, 25)
+  for i in arange:
+    dgen = LogicSeq.from_file("data/test_nstep{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
+    for mname, mf in models:
+      model = build_model(mname, mf,
+                          char_size=len(CHAR_IDX)+1,
+                          iterations=max(4, i+1),
+                          training=True)
+      results[mname].append(model.evaluate_generator(dgen)[1])
+  print("RESULTS:")
+  print(results)
+  # Plot the results
+  for mname, rs in results.items():
+    plt.plot(arange, rs, label=mname.upper())
+  plt.ylim(0.4, 1.0)
+  plt.ylabel("Accuracy")
+  plt.xticks(arange)
+  plt.xlabel("# of steps")
+  plt.vlines(3, 0.4, 1.0, linestyles='dashed', label='training')
+  plt.legend()
+  plt.savefig(ARGS.outf, bbox_inches='tight')
 
 def get_pca(context, model):
   """Plot the PCA of predicate embeddings."""
