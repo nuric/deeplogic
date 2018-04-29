@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description="Evaluate logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
 parser.add_argument("--outf", default="plot.png", help="Plot output file.")
+parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Evaluation batch_size.")
 parser.add_argument("-p", "--pad", action="store_true", help="Pad context with blank rule.")
@@ -27,13 +28,19 @@ MODEL_FILE = "weights/"+MODEL_NAME+".h5"
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
 
-def evaluate():
-  """Evaluate model on each test data."""
+def create_model(**kwargs):
+  """Create model from global arguments."""
+  # Load in the model
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
-                      iterations=ARGS.iterations,
-                      training=True)
-  model.summary()
+                      **kwargs)
+  if ARGS.summary:
+    model.summary()
+  return model
+
+def evaluate():
+  """Evaluate model on each test data."""
+  model = create_model(iterations=ARGS.iterations, training=True)
   for i in range(1, 13):
     dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
     print(model.evaluate_generator(dgen))
@@ -81,10 +88,7 @@ def get_pca(context, model):
 
 def plot_single_preds():
   """Plot embeddings of single character predicates."""
-  model = build_model(MODEL_NAME, MODEL_FILE,
-                      char_size=len(CHAR_IDX)+1,
-                      pca=True)
-  model.summary()
+  model = create_model(pca=True)
   syms = "abcdefghijklmnopqrstuvwxyz"
   ctx, splits = list(), list()
   # plt.figure(figsize=(8,8))
@@ -109,18 +113,12 @@ def plot_single_preds():
   plt.legend(["p(?).", "q(?).", "r(?).", "?(a).", "?(b).", "?(c)."])
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
-def plot_struct_preds():
-  """Plot embeddings of different structural predicates."""
-  model = build_model(MODEL_NAME, MODEL_FILE,
-                      char_size=len(CHAR_IDX)+1,
-                      pca=True)
-  model.summary()
+def plot_template(preds, temps):
+  """Plot PCA of templates with given predicates."""
+  model = create_model(pca=True)
   ctx, splits = list(), list()
-  ps = ['w', 'q', 'r', 's', 't', 'v', 'u', 'p']
-  temps = ["{}(X,Y).", "{}(A,A).", "{}(X).", "{}(Z).",
-           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
   for t in temps:
-    for p in ps:
+    for p in preds:
       ctx.append(t.format(p))
     splits.append(len(ctx))
   embds = get_pca(ctx, model)
@@ -136,17 +134,27 @@ def plot_struct_preds():
     pred, x, y = ctx[sp-1], embds[sp-1, 0], embds[sp-1, 1]
     xf, yf = offset(x), offset(y)
     plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
-  # plt.title("Predicate Embeddings")
-  plt.legend([t.replace("{}", '?') for t in temps])
+  # plt.legend([t.replace("{}", '?') for t in temps])
   plt.savefig(ARGS.outf, bbox_inches='tight')
+
+def plot_struct_preds():
+  """Plot embeddings of different structural predicates."""
+  ps = ['w', 'q', 'r', 's', 't', 'v', 'u', 'p']
+  temps = ["{}(X,Y).", "{}(A,A).", "{}(X).", "{}(Z).",
+           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
+  plot_template(ps, temps)
+
+def plot_rules():
+  """Plot embeddings of rules."""
+  ps = ['w', 'a', 'b', 'c', 'd', 'e', 's', 't', 'v', 'u', 'p']
+  temps = ["{}(X):-q(X).", "{}(X):-q(X);r(X).", "{}(X).", "{}(X,Y).",
+           "{}(X,Y):-q(X,Y).", "{}(X,Y):-q(Y,X).", "{}(X,Y):-q(X);r(X).",
+           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
+  plot_template(ps, temps)
 
 def plot_attention():
   """Plot attention vector over given context."""
-  model = build_model(MODEL_NAME, MODEL_FILE,
-                      char_size=len(CHAR_IDX)+1,
-                      iterations=ARGS.iterations,
-                      training=False)
-  model.summary()
+  model = create_model(iterations=ARGS.iterations, training=False)
   ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).",
           "p(X):-q(X).q(X):-r(X).r(a).t(a).",
           "p(X):-q(X).q(a).r(a).t(a)."]
