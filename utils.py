@@ -30,10 +30,10 @@ class LogicSeq(Sequence):
     for ctx, q, t in dpoints:
       if self.shuffle:
         np.random.shuffle(ctx)
-      if self.pad:
-        ctx.append(".") # Append a blank rule
       rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
                for r in ctx]
+      if self.pad:
+        rules.append(['']) # Append a blank rule
       rules = [[[CHAR_IDX[c] for c in pred]
                 for pred in r]
                for r in rules]
