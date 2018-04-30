@@ -10,6 +10,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
+parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
@@ -22,7 +23,7 @@ parser.add_argument("-p", "--pad", action="store_true", help="Pad context with b
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
-MODEL_FILE = "weights/"+MODEL_NAME+".h5"
+MODEL_FILE = "weights/"+MODEL_NAME+str(ARGS.dim)+".h5"
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
@@ -32,6 +33,7 @@ def create_model(**kwargs):
   # Load in the model
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
+                      dim=ARGS.dim,
                       **kwargs)
   if ARGS.summary:
     model.summary()
@@ -49,6 +51,18 @@ def ask(context, query, model):
     print(o)
   return np.asscalar(out[-1])
 
+class EarlyStop(C.Callback):
+  """Stop when monitored value reaches threshold."""
+  def __init__(self, monitor='val_acc', threshold=0.95):
+    super().__init__()
+    self.monitor = monitor
+    self.threshold = threshold
+
+  def on_epoch_end(self, epoch, logs=None):
+    current = logs.get(self.monitor)
+    if current >= self.threshold:
+      self.model.stop_training = True
+
 def train():
   """Train the given model saving weights to model_file."""
   # Setup callbacks
@@ -56,6 +70,7 @@ def train():
                                  verbose=1,
                                  save_best_only=True,
                                  save_weights_only=True),
+               EarlyStop(),
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:

@@ -14,6 +14,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Evaluate logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
+parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
 parser.add_argument("--outf", default="plot.png", help="Plot output file.")
 parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
@@ -23,7 +24,7 @@ parser.add_argument("-p", "--pad", action="store_true", help="Pad context with b
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
-MODEL_FILE = "weights/"+MODEL_NAME+".h5"
+MODEL_FILE = "weights/"+MODEL_NAME+str(ARGS.dim)+".h5"
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
@@ -33,6 +34,7 @@ def create_model(**kwargs):
   # Load in the model
   model = build_model(MODEL_NAME, MODEL_FILE,
                       char_size=len(CHAR_IDX)+1,
+                      dim=ARGS.dim,
                       **kwargs)
   if ARGS.summary:
     model.summary()
@@ -59,6 +61,7 @@ def eval_nstep():
     for mname, mf in models:
       model = build_model(mname, mf,
                           char_size=len(CHAR_IDX)+1,
+                          dim=ARGS.dim,
                           iterations=max(4, i+1),
                           training=True)
       results[mname].append(model.evaluate_generator(dgen)[1])
