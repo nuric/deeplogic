@@ -123,6 +123,7 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
   # Reused layers over iterations
   repeat_toctx = L.RepeatVector(K.shape(embedded_ctx)[1], name='repeat_to_ctx')
   diff_sq = L.Lambda(lambda xy: K.square(xy[0]-xy[1]), output_shape=(None, dim), name='diff_sq')
+  concat = L.Lambda(lambda xs: K.concatenate(xs, axis=2), output_shape=(None, dim*5), name='concat')
   att_dense = L.TimeDistributed(L.Dense(1, activation='sigmoid', name='att_dense'), name='d_att_dense')
   squeeze2 = L.Lambda(lambda x: K.squeeze(x, 2), name='sequeeze2')
   rule_mask = L.Lambda(lambda x: K.cast(K.any(K.not_equal(x, 0), axis=-1, keepdims=True), 'float32'), name='rule_mask')(embedded_rules)
@@ -133,13 +134,14 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
 
   # Reasoning iterations
   state = embedded_predq
+  repeated_q = repeat_toctx(embedded_predq)
   outs = list()
   for _ in range(iterations):
     # Compute attention between rule and query state
     ctx_state = repeat_toctx(state) # (?, rules, dim)
     s_s_c = diff_sq([ctx_state, embedded_rules])
     s_m_c = L.multiply([embedded_rules, state]) # (?, rules, dim)
-    sim_vec = L.concatenate([s_s_c, s_m_c])
+    sim_vec = concat([s_s_c, s_m_c, ctx_state, embedded_rules, repeated_q])
     sim_vec = att_dense(sim_vec) # (?, rules, 1)
     sim_vec = L.multiply([sim_vec, rule_mask])
     sim_vec = squeeze2(sim_vec) # (?, rules)
