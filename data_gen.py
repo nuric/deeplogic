@@ -91,15 +91,17 @@ def fail_pred(context, pred, upreds, uconsts, psuccess=0.0):
   # Maybe succeed by adding to context
   if R.random() < psuccess:
     context.append([pred])
-  elif R.random() < 0.7:
-    # The constant doesn't match
-    args = pred[1].copy()
-    args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
-    context.append([(pred[0], args)])
-    # The predicate doesn't match
-    p = r_preds(1, upreds)[0]
-    upreds.append(p)
-    context.append([(p, pred[1])])
+  else:
+    if R.random() < 0.5:
+      # The constant doesn't match
+      args = pred[1].copy()
+      args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
+      context.append([(pred[0], args)])
+    if R.random() < 0.5:
+      # The predicate doesn't match
+      p = r_preds(1, upreds)[0]
+      upreds.append(p)
+      context.append([(p, pred[1])])
   # The predicate doesn't appear at all
 
 def gen_task1(upreds=None):
