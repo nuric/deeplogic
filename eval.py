@@ -61,9 +61,8 @@ def eval_nstep():
     for mname, mf in models:
       model = build_model(mname, mf,
                           char_size=len(CHAR_IDX)+1,
-                          dim=ARGS.dim,
-                          iterations=max(4, i+1),
-                          training=True)
+                          dim=int(mname[-2:]),
+                          iterations=max(4, i+1))
       results[mname].append(model.evaluate_generator(dgen)[1])
   print("RESULTS:")
   print(results)
@@ -77,6 +76,45 @@ def eval_nstep():
   plt.vlines(3, 0.4, 1.0, linestyles='dashed', label='training')
   plt.legend()
   plt.savefig(ARGS.outf, bbox_inches='tight')
+
+def eval_len(item='pl'):
+  """Evaluate model on increasing constant and predicate lengths."""
+  # Load available models
+  models = [(mf.split('/')[1].split('.')[0], mf)
+            for mf in glob("weights/*.h5")]
+  print("Found models:", models)
+  results = {m[0]:list() for m in models}
+  models = [(mname, build_model(mname[:-2], mf, char_size=len(CHAR_IDX)+1, dim=int(mname[-2:])))
+            for mname, mf in models]
+  # Evaluate every model on test data
+  arange = np.arange(1, 33)
+  for i in arange:
+    dgen = LogicSeq.from_file("data/test_{}{}.txt".format(item, i), ARGS.batch_size, pad=ARGS.pad)
+    for mname, m in models:
+      results[mname].append(m.evaluate_generator(dgen)[1])
+  print("RESULTS:")
+  print(results)
+  # Plot the results
+  for mname, rs in results.items():
+    plt.plot(arange, rs, label=mname.upper())
+  plt.ylim(0.4, 1.0)
+  plt.ylabel("Accuracy")
+  plt.xticks(arange)
+  if item == 'pl':
+    plt.xlabel("Length of predicates (characters)")
+  else:
+    plt.xlabel("Length of constants (characters)")
+  plt.vlines(2, 0.4, 1.0, linestyles='dashed', label='training')
+  plt.legend()
+  plt.savefig(ARGS.outf, bbox_inches='tight')
+
+def eval_pred_len():
+  """Evaluate model on increasing predicate lengths."""
+  eval_len(item='pl')
+
+def eval_const_len():
+  """Evaluate model on increasing constant lengths."""
+  eval_len(item='cl')
 
 def get_pca(context, model):
   """Plot the PCA of predicate embeddings."""
