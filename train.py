@@ -16,6 +16,7 @@ parser.add_argument("--trainf", default="data/train.txt", help="Training data fi
 parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
 parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
+parser.add_argument("-ic", "--iter_curriculum", action="store_true", help="Iterative curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Training batch_size.")
@@ -53,7 +54,7 @@ def ask(context, query, model):
 
 class EarlyStop(C.Callback):
   """Stop when monitored value reaches threshold."""
-  def __init__(self, monitor='val_acc', threshold=0.95):
+  def __init__(self, monitor='val_acc', threshold=0.97):
     super().__init__()
     self.monitor = monitor
     self.threshold = threshold
@@ -84,6 +85,19 @@ def train():
         traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size, pad=ARGS.pad)
         testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size, pad=ARGS.pad)
         model.fit_generator(traind, epochs=i*2,
+                            callbacks=callbacks,
+                            validation_data=testd,
+                            shuffle=True)
+    elif ARGS.iter_curriculum:
+      # Train incrementally based on iteration count
+      for i in range(1, 5):
+        print("ITER:", i)
+        model = create_model(iterations=i)
+        callbacks[0].best = np.Inf # Reset checkpoint
+        ft = "data/{}_iter{}.txt"
+        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size, pad=ARGS.pad)
+        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size, pad=ARGS.pad)
+        model.fit_generator(traind, epochs=i*10,
                             callbacks=callbacks,
                             validation_data=testd,
                             shuffle=True)
