@@ -191,9 +191,11 @@ def plot_struct_preds():
 def plot_rules():
   """Plot embeddings of rules."""
   ps = ['w', 'a', 'b', 'c', 'd', 'e', 's', 't', 'v', 'u', 'p']
-  temps = ["{}(X):-q(X).", "{}(X):-q(X);r(X).", "{}(X).", "{}(X,Y).",
-           "{}(X,Y):-q(X,Y).", "{}(X,Y):-q(Y,X).", "{}(X,Y):-q(X);r(X).",
-           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
+  temps = ["{}(X):-q(X).", "{}(X):--q(X).", "{}(X):-q(X);r(X).", "{}(X).",
+           "{}(X,Y).", "{}(X,Y):--q(Y,X).", "{}(X,Y):--q(X,Y).",
+           "{}(X,Y):-q(X,Y).", "{}(X,Y):-q(Y,X).", "{}(X,Y):-q(X);r(Y).",
+           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy).",
+           "{}(X):--q(X);r(X).", "{}(X):-q(X);-r(X)."]
   plot_template(ps, temps)
 
 def plot_attention():
