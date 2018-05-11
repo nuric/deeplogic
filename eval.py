@@ -199,15 +199,15 @@ def plot_rules():
 def plot_attention():
   """Plot attention vector over given context."""
   model = create_model(iterations=ARGS.iterations, training=False)
-  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).",
-          "p(X):-q(X).q(X):-r(X).r(a).t(a).",
-          "p(X):-q(X).q(a).r(a).t(a)."]
+  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).t(a).",
+          "p(X):-q(X);r(X).r(a).q(a).r(b).t(a).",
+          "p(X):-q(X).p(X):-r(X).p(b).r(a).t(a)."]
   plt.set_cmap("Blues")
   for i, ctx in enumerate(ctxs):
     print("CTX:", ctx)
     rs = ctx.split('.')[:-1]
     ctx = [r + '.' for r in rs]
-    dgen = LogicSeq([(ctx, "p(a).", 0)], 1, False, False)
+    dgen = LogicSeq([(ctx, "p(a).", 0)], 1, False, False, pad=ARGS.pad)
     out = model.predict_generator(dgen)
     sims = out[:-1]
     out = np.round(np.asscalar(out[-1]), 2)
@@ -217,7 +217,10 @@ def plot_attention():
     ax = plt.subplot(1, len(ctxs), i+1)
     ax.xaxis.tick_top()
     plt.imshow(sims)
-    plt.yticks(range(len(rs)), rs)
+    if ARGS.pad:
+      plt.yticks(range(len(rs)+1), rs + ["$\phi$"])
+    else:
+      plt.yticks(range(len(rs)), rs)
     plt.xlabel("p(Q|C)=" + str(out))
     plt.xticks(range(4), range(1, 5))
     # if i == len(ctxs) - 1:
