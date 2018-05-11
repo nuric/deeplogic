@@ -114,7 +114,7 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
   embedded_ctx_preds = NestedTimeDist(NestedTimeDist(embed_pred, name='nest1'), name='nest2')(embedded_ctx)
   # (?, rules, preds, dim)
 
-  # embed_rule = ZeroGRU(dim*2, go_backwards=True, name='embed_rule')
+  # embed_rule = ZeroGRU(dim, go_backwards=True, name='embed_rule')
   # embedded_rules = NestedTimeDist(embed_rule, name='d_embed_rule')(embedded_ctx_preds)
   get_heads = L.Lambda(lambda x: x[:, :, 0, :], name='rule_heads')
   embedded_rules = get_heads(embedded_ctx_preds)
@@ -163,7 +163,7 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
   if ilp:
     return outs, out
   elif pca:
-    model = Model([context, query], [embedded_ctx_preds])
+    model = Model([context, query], [embedded_rules])
   elif training:
     model = Model([context, query], [out])
     model.compile(loss='binary_crossentropy',
