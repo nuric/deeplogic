@@ -130,31 +130,58 @@ def get_pca(context, model):
   print("VAR:", pca.explained_variance_ratio_)
   return embds
 
+def offset(x):
+  """Calculate offset for annotation."""
+  r = np.random.randint(10, 30)
+  return -r if x > 0 else r
+
 def plot_single_preds():
   """Plot embeddings of single character predicates."""
   model = create_model(pca=True)
   syms = "abcdefghijklmnopqrstuvwxyz"
   ctx, splits = list(), list()
-  # plt.figure(figsize=(8,8))
-  for p in ['p', 'q', 'r']:
+  for p in syms:
     for c in syms:
-      ctx.append("{}({}).".format(p,c))
-    splits.append(len(ctx))
-  for c in ['a', 'b', 'c']:
-    for p in syms:
       ctx.append("{}({}).".format(p,c))
     splits.append(len(ctx))
   embds = get_pca(ctx, model)
   prev_sp = 0
   for sp in splits:
     plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
+    pred, x, y = ctx[prev_sp][0]+"(?)", embds[prev_sp, 0], embds[prev_sp, 1]
     prev_sp = sp
-  for pred, x, y in zip(ctx, embds[:, 0], embds[:, 1]):
-    if np.random.rand() < 0.1:
-      plt.annotate(pred, xy=(x, y), xytext=(0, 10), textcoords='offset points')
-  # plt.axis('scaled')
-  # plt.title("Single Character Predicates")
-  plt.legend(["p(?).", "q(?).", "r(?).", "?(a).", "?(b).", "?(c)."])
+    xf, yf = offset(x), offset(y)
+    plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
+  plt.savefig(ARGS.outf, bbox_inches='tight')
+
+def plot_pred_saturation():
+  """Plot predicate embedding saturation."""
+  model = create_model(pca=True)
+  ctx, splits = list(), list()
+  for i in range(2, 33):
+    p = "".join(["p"]*i)
+    ctx.append("{}(a).".format(p))
+    splits.append(len(ctx))
+  embds = get_pca(ctx, model)
+  prev_sp = 0
+  for i, sp in enumerate(splits):
+    plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
+    pred, x, y = ctx[prev_sp], embds[prev_sp, 0], embds[prev_sp, 1]
+    count = pred.count('p')
+    if count <= 6:
+      xf, yf = offset(x), offset(y)
+      plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
+    elif i % 3 == 0 and count < 20 or i == len(splits)-1:
+      pred = str(count)+"*p(a)"
+      xf, yf = offset(x), offset(y)
+      plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
+    prev_sp = sp
+  # Plot contour
+  X = np.linspace(min(embds[:,0]), max(embds[:,0]), 40)
+  Y = np.linspace(min(embds[:,1]), max(embds[:,1]), 40)
+  X, Y = np.meshgrid(X, Y)
+  Z = np.sqrt((X-embds[-1,0])**2 + (Y-embds[-1,1])**2)
+  plt.contour(X, Y, Z, colors='grey')
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
 def plot_template(preds, temps):
@@ -170,22 +197,18 @@ def plot_template(preds, temps):
   for sp in splits:
     plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
     prev_sp = sp
-  def offset(x):
-    """Calculate offset for annotation."""
-    r = np.random.randint(10, 30)
-    return -r if x > 0 else r
-  for sp in splits:
     pred, x, y = ctx[sp-1], embds[sp-1, 0], embds[sp-1, 1]
     xf, yf = offset(x), offset(y)
     plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
-  # plt.legend([t.replace("{}", '?') for t in temps])
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
 def plot_struct_preds():
   """Plot embeddings of different structural predicates."""
   ps = ['w', 'q', 'r', 's', 't', 'v', 'u', 'p']
   temps = ["{}(X,Y).", "{}(A,A).", "{}(X).", "{}(Z).",
-           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy)."]
+           "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy).",
+           "-{}(a,b).", "-{}(x,y).", "-{}(a).", "-{}(xy).",
+           "-{}(X,Y).", "-{}(A,A).", "-{}(X).", "-{}(Z)."]
   plot_template(ps, temps)
 
 def plot_rules():
