@@ -10,6 +10,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
+parser.add_argument("-mf", "--model_file", help="Model weights file.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
@@ -25,6 +26,8 @@ ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
 MODEL_FILE = "weights/"+MODEL_NAME+str(ARGS.dim)+".h5"
+if ARGS.model_file:
+  MODEL_FILE = ARGS.model_file
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)

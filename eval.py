@@ -14,6 +14,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Evaluate logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
+parser.add_argument("-mf", "--model_file", help="Model weights file.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
 parser.add_argument("--outf", default="plot.png", help="Plot output file.")
@@ -25,6 +26,8 @@ ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
 MODEL_FILE = "weights/"+MODEL_NAME+str(ARGS.dim)+".h5"
+if ARGS.model_file:
+  MODEL_FILE = ARGS.model_file
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
