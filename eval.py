@@ -163,9 +163,10 @@ def plot_pred_saturation():
     ctx.append("{}(a).".format(p))
     splits.append(len(ctx))
   embds = get_pca(ctx, model)
+  plt.scatter(embds[::2, 0], embds[::2, 1])
+  plt.scatter(embds[1::2, 0], embds[1::2, 1])
   prev_sp = 0
   for i, sp in enumerate(splits):
-    plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
     pred, x, y = ctx[prev_sp], embds[prev_sp, 0], embds[prev_sp, 1]
     count = pred.count('p')
     if count <= 6:
