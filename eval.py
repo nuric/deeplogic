@@ -62,7 +62,7 @@ def eval_nstep():
   for i in arange:
     dgen = LogicSeq.from_file("data/test_nstep{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
     for mname, mf in models:
-      model = build_model(mname, mf,
+      model = build_model(mname[:-2], mf,
                           char_size=len(CHAR_IDX)+1,
                           dim=int(mname[-2:]),
                           iterations=max(4, i+1))
@@ -74,9 +74,10 @@ def eval_nstep():
     plt.plot(arange, rs, label=mname.upper())
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
-  plt.xticks(arange)
+  plt.xlim(1, arange[-1])
+  plt.xticks(arange[::2])
   plt.xlabel("# of steps")
-  plt.vlines(3, 0.4, 1.0, linestyles='dashed', label='training')
+  plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   plt.legend()
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
@@ -107,7 +108,7 @@ def eval_len(item='pl'):
     plt.xlabel("Length of predicates (characters)")
   else:
     plt.xlabel("Length of constants (characters)")
-  plt.vlines(2, 0.4, 1.0, linestyles='dashed', label='training')
+  plt.vlines(2, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   plt.legend()
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
