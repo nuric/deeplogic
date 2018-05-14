@@ -91,7 +91,7 @@ def eval_len(item='pl'):
   models = [(mname, build_model(mname[:-2], mf, char_size=len(CHAR_IDX)+1, dim=int(mname[-2:])))
             for mname, mf in models]
   # Evaluate every model on test data
-  arange = np.arange(1, 33)
+  arange = np.arange(2, 65)
   for i in arange:
     dgen = LogicSeq.from_file("data/test_{}{}.txt".format(item, i), ARGS.batch_size, pad=ARGS.pad)
     for mname, m in models:
@@ -103,12 +103,12 @@ def eval_len(item='pl'):
     plt.plot(arange, rs, label=mname.upper())
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
-  plt.xticks(arange)
+  plt.xlim(2, arange[-1])
+  plt.xticks(arange[::8])
   if item == 'pl':
     plt.xlabel("Length of predicates (characters)")
   else:
     plt.xlabel("Length of constants (characters)")
-  plt.vlines(2, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   plt.legend()
   plt.savefig(ARGS.outf, bbox_inches='tight')
 

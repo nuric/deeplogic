@@ -127,7 +127,7 @@ eval_len() {
   echo "Generating increasing length data."
   rm -f $DDIR'test_pl'*.txt
   rm -f $DDIR'test_cl'*.txt
-  for i in {2..32}; do
+  for i in {2..64}; do
     F=$DDIR'test_pl'$i.txt
     echo Writing to $F
     $DCMD -s $SIZE -t 3 -pl $i -cl 2 > $F
