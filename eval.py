@@ -229,9 +229,9 @@ def plot_rules():
 def plot_attention():
   """Plot attention vector over given context."""
   model = create_model(iterations=ARGS.iterations, training=False)
-  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).t(a).",
-          "p(X):-q(X);r(X).r(a).q(a).r(b).t(a).",
-          "p(X):-q(X).p(X):-r(X).p(b).r(a).t(a)."]
+  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).s(b).",
+          "p(X):-q(X);r(X).r(a).q(a).r(b).q(b).",
+          "p(X):-q(X).p(X):-r(X).p(b).r(a).q(b)."]
   plt.set_cmap("Blues")
   for i, ctx in enumerate(ctxs):
     print("CTX:", ctx)
