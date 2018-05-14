@@ -119,12 +119,12 @@ def eval_const_len():
   """Evaluate model on increasing constant lengths."""
   eval_len(item='cl')
 
-def get_pca(context, model):
+def get_pca(context, model, dims=2):
   """Plot the PCA of predicate embeddings."""
   dgen = LogicSeq([(context, "z(z).", 0)], 1, False, False)
   embds = model.predict_generator(dgen)
   embds = embds.squeeze()
-  pca = PCA(2)
+  pca = PCA(dims)
   embds = pca.fit_transform(embds)
   print("TRANSFORMED:", embds)
   print("VAR:", pca.explained_variance_ratio_)
@@ -140,18 +140,22 @@ def plot_single_preds():
   model = create_model(pca=True)
   syms = "abcdefghijklmnopqrstuvwxyz"
   ctx, splits = list(), list()
-  for p in syms:
+  preds = ['p', 'q', 'r', 's', 't', 'v', 'u']
+  for p in preds:
     for c in syms:
       ctx.append("{}({}).".format(p,c))
     splits.append(len(ctx))
-  embds = get_pca(ctx, model)
+  embds = get_pca(ctx, model, dims=len(preds))
+  from mpl_toolkits.mplot3d import Axes3D
+  fig = plt.figure()
+  ax = fig.add_subplot(111, projection='3d')
   prev_sp = 0
   for sp in splits:
-    plt.scatter(embds[prev_sp:sp, 0], embds[prev_sp:sp, 1])
-    pred, x, y = ctx[prev_sp][0]+"(?)", embds[prev_sp, 0], embds[prev_sp, 1]
+    x, y, z = embds[prev_sp:sp, 0], embds[prev_sp:sp, 1], embds[prev_sp:sp, -1]
+    ax.scatter(x, y, z, depthshade=False)
+    for i in [2, 3]:
+      ax.text(x[i], y[i], z[i], ctx[prev_sp+i])
     prev_sp = sp
-    xf, yf = offset(x), offset(y)
-    plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
   plt.savefig(ARGS.outf, bbox_inches='tight')
 
 def plot_pred_saturation():
