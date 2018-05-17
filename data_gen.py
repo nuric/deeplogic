@@ -86,22 +86,21 @@ def gen_task(context, targets, upreds):
     ctx.append(globals()[task](upreds))
   output(ctx, targets)
 
-def fail_pred(context, pred, upreds, uconsts, psuccess=0.0):
+def add_pred(context, pred, upreds, uconsts, psuccess=0.0):
   """Fail a ground case predicate given context."""
   # Maybe succeed by adding to context
   if R.random() < psuccess:
     context.append([pred])
-  else:
-    if R.random() < 0.5:
-      # The constant doesn't match
-      args = pred[1].copy()
-      args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
-      context.append([(pred[0], args)])
-    if R.random() < 0.5:
-      # The predicate doesn't match
-      p = r_preds(1, upreds)[0]
-      upreds.append(p)
-      context.append([(p, pred[1])])
+  if R.random() < 0.5:
+    # The constant doesn't match
+    args = pred[1].copy()
+    args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
+    context.append([(pred[0], args)])
+  if R.random() < 0.5:
+    # The predicate doesn't match
+    p = r_preds(1, upreds)[0]
+    upreds.append(p)
+    context.append([(p, pred[1])])
   # The predicate doesn't appear at all
 
 def gen_task1(upreds=None):
@@ -112,13 +111,14 @@ def gen_task1(upreds=None):
   rule = [(preds[0], args)]
   if upreds:
     return rule
-  ctx = [rule]
+  ctx = list()
+  add_pred(ctx, rule[0], preds, args, 1.0)
   # Successful case when query appears in context
-  targets = [(ctx[0][0], 1)]
+  targets = [(rule[0], 1)]
   # Fail case
   args = r_consts(R.randint(1, 2))
   fpred = (preds[1], args)
-  fail_pred(ctx, fpred, preds, args)
+  add_pred(ctx, fpred, preds, args)
   targets.append((fpred, 0))
   gen_task(ctx, targets, preds)
 
@@ -178,7 +178,7 @@ def nstep_deduction(steps, negation=False, upreds=None):
       swapc += int(toswap)
     # Add the ground case
     args = r_consts(2)
-    ctx.append([(preds[steps], args)])
+    add_pred(ctx, (preds[steps], args), preds, consts, 1.0)
     args = args if swapc % 2 == 0 else args[::-1]
     targets.append(((preds[0], args), 1-int(negation)))
     targets.append(((preds[0], args[::-1]), int(negation)))
@@ -200,14 +200,11 @@ def nstep_deduction(steps, negation=False, upreds=None):
     # Add the ground case
     cctx = ctx.copy()
     spred = (preds[steps], args)
-    cctx.append([spred])
-    if R.random() < 0.5:
-      # Add predicate decoy
-      cctx.append([(preds[-1], args)])
+    add_pred(cctx, spred, preds, args, 1.0)
     targets = [((preds[0], args), 1-int(negation))]
     gen_task(cctx, targets, preds)
     # Add failure case
-    fail_pred(ctx, spred, preds, args)
+    add_pred(ctx, spred, preds, args)
     targets = [((preds[0], args), int(negation))]
     gen_task(ctx, targets, preds)
 
@@ -248,7 +245,7 @@ def logical_and(negation=False, upreds=None):
     ctx[-1][ridx+1] = ('-' + p, pargs)
     # Successful case when negation fails
     cctx = ctx.copy()
-    fail_pred(cctx, prems[ridx], preds, args)
+    add_pred(cctx, prems[ridx], preds, args)
     cctx.append([prems[1-ridx]])
     targets = [((preds[0], args), 1)]
     gen_task(cctx, targets, preds)
@@ -258,25 +255,26 @@ def logical_and(negation=False, upreds=None):
       # To fail negation add ground instance
       ctx.append([prems[ridx]])
       # Succeed other with some probability
-      fail_pred(ctx, prems[1-ridx], preds, args, 0.8)
+      add_pred(ctx, prems[1-ridx], preds, args, 0.8)
     else:
       # Fail non-negated premise
-      fail_pred(ctx, prems[1-ridx], preds, args)
+      add_pred(ctx, prems[1-ridx], preds, args)
       # Still succeed negation
-      fail_pred(ctx, prems[ridx], preds, args)
+      add_pred(ctx, prems[ridx], preds, args)
     targets = [((preds[0], args), 0)]
     gen_task(ctx, targets, preds)
   else:
     # Create successful context
     cctx = ctx.copy()
-    cctx.extend([[p] for p in prems])
+    add_pred(cctx, prems[0], preds, args, 1.0)
+    add_pred(cctx, prems[1], preds, args, 1.0)
     targets = [((preds[0], args), 1)]
     gen_task(cctx, targets, preds)
     # Fail one premise randomly
     fidx = R.randrange(2)
-    fail_pred(ctx, prems[fidx], preds, args)
+    add_pred(ctx, prems[fidx], preds, args)
     # Succeed the other with some probability
-    fail_pred(ctx, prems[1-fidx], preds, args, 0.8)
+    add_pred(ctx, prems[1-fidx], preds, args, 0.8)
     targets = [((preds[0], args), 0)]
     gen_task(ctx, targets, preds)
 
@@ -303,7 +301,7 @@ def logical_or(negation=False, upreds=None):
   ctx.append([(preds[0], args)])
   if swap and argc == 2:
     args = r_consts(argc, args)
-    ctx.append([(preds[1], args)])
+    add_pred(ctx, (preds[1], args), preds, args, 1.0)
     args = args[::-1] if swap else args
     targets = [((preds[0], args), 1-int(negation)),
                ((preds[0], args[::-1]), int(negation))]
@@ -322,19 +320,19 @@ def logical_or(negation=False, upreds=None):
     cctx = ctx.copy()
     if negation and sidx == 0:
       # Succeed by failing negation
-      fail_pred(cctx, prems[0], preds, prems[0][1])
+      add_pred(cctx, prems[0], preds, prems[0][1])
       # Possibly succeed other prem
-      fail_pred(cctx, prems[1], preds, prems[1][1], 0.2)
+      add_pred(cctx, prems[1], preds, prems[1][1], 0.2)
     else:
       # Succeed by adding ground case
-      cctx.append([prems[sidx]])
+      add_pred(cctx, prems[sidx], preds, prems[sidx][1], 1.0)
       # Possibly succeed other prem
-      fail_pred(cctx, prems[1-sidx], preds, prems[1-sidx][1], 0.2)
+      add_pred(cctx, prems[1-sidx], preds, prems[1-sidx][1], 0.2)
     targets = [((preds[0], prems[sidx][1]), 1)]
     gen_task(cctx, targets, preds)
     # Fail both
-    fail_pred(ctx, prems[0], preds, prems[0][1], int(negation))
-    fail_pred(ctx, prems[1], preds, prems[1][1])
+    add_pred(ctx, prems[0], preds, prems[0][1], int(negation))
+    add_pred(ctx, prems[1], preds, prems[1][1])
     targets = [((preds[0], prems[sidx][1]), 0)]
     gen_task(ctx, targets, preds)
 
@@ -356,13 +354,13 @@ def gen_task8(upreds=None):
   ctx = [rule]
   # Add matching ground cases
   args = r_consts(3)
-  ctx.append([(preds[1], args[:2])])
-  ctx.append([(preds[2], args[1:])])
+  add_pred(ctx, (preds[1], args[:2]), preds, args, 1.0)
+  add_pred(ctx, (preds[2], args[1:]), preds, args, 1.0)
   # Add non-matching ground cases
   argso = r_consts(3)
   argso.insert(R.randint(1, 2), r_consts(1, argso)[0])
-  ctx.append([(preds[1], argso[:2])])
-  ctx.append([(preds[2], argso[2:])])
+  add_pred(ctx, (preds[1], argso[:2]), preds, argso, 1.0)
+  add_pred(ctx, (preds[2], argso[2:]), preds, argso, 1.0)
   # Successful case
   # Fail on half-matching existential
   targets = [((preds[0], [args[0], args[2]]), 1),
