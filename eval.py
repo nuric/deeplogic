@@ -46,9 +46,14 @@ def create_model(**kwargs):
 def evaluate():
   """Evaluate model on each test data."""
   model = create_model(iterations=ARGS.iterations, training=True)
+  results = list()
   for i in range(1, 13):
     dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
-    print(model.evaluate_generator(dgen))
+    r = model.evaluate_generator(dgen)
+    print(r)
+    results.append(r)
+  results = np.array(results)
+  print("MEAN:", np.mean(results, axis=0))
 
 def eval_nstep():
   """Evaluate model on nstep deduction."""
