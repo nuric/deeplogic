@@ -3,11 +3,9 @@ import keras.layers as L
 import keras.backend as K
 from keras.models import Model
 
-LATENT_DIM = 64
-
 # pylint: disable=line-too-long
 
-def build_model(char_size=27, iterations=4, training=True):
+def build_model(char_size=27, iterations=4, dim=64, training=True):
   """Build the model."""
   # Inputs
   # Context: (rules, preds, chars,)
@@ -23,17 +21,17 @@ def build_model(char_size=27, iterations=4, training=True):
                        trainable=False,
                        mask_zero=True,
                        name='onehot')
-  embedded_ctx = onehot(flat_ctx) # (?, rules, preds, chars, char_size)
+  embedded_ctx = onehot(flat_ctx) # (?, rules*preds*chars, char_size)
   embedded_q = onehot(query) # (?, chars, char_size)
 
   # Initial pass
-  init_lstm = L.LSTM(LATENT_DIM, return_state=True, name='init_lstm')
+  init_lstm = L.LSTM(dim, return_state=True, name='init_lstm')
   _, *states = init_lstm(embedded_q)
   init_lstm.return_sequences = True
   ctx, *states = init_lstm(embedded_ctx, initial_state=states)
 
   # Reused layers over iterations
-  lstm = L.LSTM(LATENT_DIM, return_sequences=True, return_state=True, name='lstm')
+  lstm = L.LSTM(dim, return_sequences=True, return_state=True, name='lstm')
 
   # Iterations
   for _ in range(iterations):
