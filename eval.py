@@ -48,9 +48,9 @@ def evaluate():
   model = create_model(iterations=ARGS.iterations, training=True)
   results = list()
   for i in range(1, 13):
-    dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
+    dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad, verbose=False)
     r = model.evaluate_generator(dgen)
-    print(r)
+    print("Task: {:2}".format(i), r)
     results.append(r)
   results = np.array(results)
   print("MEAN:", np.mean(results, axis=0))

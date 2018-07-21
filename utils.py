@@ -60,7 +60,7 @@ class LogicSeq(Sequence):
     return xs
 
   @classmethod
-  def from_file(cls, fname, batch_size, pad=False):
+  def from_file(cls, fname, batch_size, pad=False, verbose=True):
     """Load logic programs from given fname."""
     dpoints = list()
     with open(fname) as f:
@@ -77,6 +77,7 @@ class LogicSeq(Sequence):
             isnew_ctx = False
           ctx.append(l)
     np.random.shuffle(dpoints)
-    print("Example data points from:", fname)
-    print(dpoints[:4])
+    if verbose:
+      print("Example data points from:", fname)
+      print(dpoints[:4])
     return cls(dpoints, batch_size, pad=pad)
