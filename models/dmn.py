@@ -84,6 +84,9 @@ class NestedTimeDist(L.TimeDistributed):
                           unroll=False)
     return outputs
 
+  def compute_mask(self, inputs, mask=None):
+    return None
+
 class EpisodicMemory(L.Wrapper):
   """Episodic memory from DMN."""
   def __init__(self, units, **kwargs):

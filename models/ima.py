@@ -83,6 +83,9 @@ class NestedTimeDist(L.TimeDistributed):
                           unroll=False)
     return outputs
 
+  def compute_mask(self, inputs, mask=None):
+    return None
+
 def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pca=False):
   """Build the model."""
   # Inputs
