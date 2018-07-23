@@ -107,7 +107,7 @@ class StatefulCheckpoint(C.ModelCheckpoint):
     super().__init__(weight_file, **kwargs)
     self.state_f = state_file
     self.hostname = socket.gethostname()
-      self.state = dict()
+    self.state = dict()
     if self.state_f:
       # Load the last state if any
       try:
