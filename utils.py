@@ -1,5 +1,9 @@
 """Data utils for logic-memnn."""
+import json
+import socket
 import numpy as np
+
+import keras.callbacks as C
 from keras.utils import Sequence
 from keras.preprocessing.sequence import pad_sequences
 
@@ -81,3 +85,42 @@ class LogicSeq(Sequence):
       print("Example data points from:", fname)
       print(dpoints[:4])
     return cls(dpoints, batch_size, pad=pad)
+
+
+class StatefulCheckpoint(C.ModelCheckpoint):
+  """Save extra checkpoint data to resume training."""
+  def __init__(self, weight_file, state_file=None, **kwargs):
+    """Save the state (epoch etc.) along side weights."""
+    super().__init__(weight_file, **kwargs)
+    self.state_f = state_file
+    self.hostname = socket.gethostname()
+      self.state = dict()
+    if self.state_f:
+      # Load the last state if any
+      try:
+        with open(self.state_f, 'r') as f:
+          self.state = json.load(f)
+        self.best = self.state['best']
+      except Exception as e: # pylint: disable=broad-except
+        print("Skipping last state:", e)
+
+  def on_train_begin(self, logs=None):
+    prefix = "Resuming" if self.state else "Starting"
+    print("{} training on {}".format(prefix, self.hostname))
+
+  def on_epoch_end(self, epoch, logs=None):
+    """Saves training state as well as weights."""
+    if self.state_f:
+      state = {'epoch': epoch+1, 'best': self.best}
+      state.update(logs)
+      state.update(self.params)
+      with open(self.state_f, 'w') as f:
+        json.dump(state, f)
+    super().on_epoch_end(epoch, logs)
+
+  def get_last_epoch(self, initial_epoch=0):
+    """Return last saved epoch if any, or return default argument."""
+    return self.state.get('epoch', initial_epoch)
+
+  def on_train_end(self, logs=None):
+    print("Training ending on {}".format(self.hostname))

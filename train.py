@@ -4,13 +4,14 @@ import numpy as np
 import keras.callbacks as C
 
 from data_gen import CHAR_IDX, IDX_CHAR
-from utils import LogicSeq
+from utils import LogicSeq, StatefulCheckpoint
 from models import build_model
 
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
-parser.add_argument("-mf", "--model_file", help="Model weights file.")
+parser.add_argument("-mf", "--model_file", help="Model filename.")
+parser.add_argument("-md", "--model_dir", help="Model weights directory ending with /.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
@@ -25,9 +26,10 @@ parser.add_argument("-p", "--pad", action="store_true", help="Pad context with b
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
-MODEL_FILE = "weights/"+MODEL_NAME+str(ARGS.dim)+".h5"
-if ARGS.model_file:
-  MODEL_FILE = ARGS.model_file
+MODEL_FNAME = ("curr_" if ARGS.curriculum else "multi_") + MODEL_NAME + str(ARGS.dim)
+MODEL_FNAME = ARGS.model_file or MODEL_FNAME
+MODEL_WF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.h5'
+MODEL_SF = 'outs/' + MODEL_FNAME + '.json'
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
@@ -35,7 +37,7 @@ np.set_printoptions(suppress=True)
 def create_model(**kwargs):
   """Create model from global arguments."""
   # Load in the model
-  model = build_model(MODEL_NAME, MODEL_FILE,
+  model = build_model(MODEL_NAME, MODEL_WF,
                       char_size=len(CHAR_IDX)+1,
                       dim=ARGS.dim,
                       **kwargs)
@@ -70,7 +72,7 @@ class EarlyStop(C.Callback):
 def train():
   """Train the given model saving weights to model_file."""
   # Setup callbacks
-  callbacks = [C.ModelCheckpoint(filepath=MODEL_FILE,
+  callbacks = [C.ModelCheckpoint(filepath=MODEL_WF,
                                  verbose=1,
                                  save_best_only=True,
                                  save_weights_only=True),
@@ -90,6 +92,7 @@ def train():
         model.fit_generator(traind, epochs=i*2,
                             callbacks=callbacks,
                             validation_data=testd,
+                            verbose=2,
                             shuffle=True)
     elif ARGS.iter_curriculum:
       # Train incrementally based on iteration count
@@ -103,16 +106,21 @@ def train():
         model.fit_generator(traind, epochs=i*10,
                             callbacks=callbacks,
                             validation_data=testd,
+                            verbose=2,
                             shuffle=True)
     # Run full training
     model = create_model(iterations=ARGS.iterations)
-    callbacks[0].best = np.Inf # Reset checkpoint
+    # For long running training swap in stateful checkpoint
+    callbacks[0] = StatefulCheckpoint(MODEL_WF, MODEL_SF,
+                                      verbose=1, save_best_only=True,
+                                      save_weights_only=True)
     traind = LogicSeq.from_file(ARGS.trainf, ARGS.batch_size, pad=ARGS.pad)
     testd = LogicSeq.from_file(ARGS.testf, ARGS.batch_size, pad=ARGS.pad)
     model.fit_generator(traind, epochs=120,
                         callbacks=callbacks,
                         validation_data=testd,
-                        shuffle=True)
+                        verbose=2, shuffle=True,
+                        initial_epoch=callbacks[0].get_last_epoch())
   finally:
     print("Training terminated.")
     # Dump some examples for debugging
