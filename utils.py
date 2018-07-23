@@ -87,6 +87,19 @@ class LogicSeq(Sequence):
     return cls(dpoints, batch_size, pad=pad)
 
 
+class ThresholdStop(C.Callback):
+  """Stop when monitored value is greater than threshold."""
+  def __init__(self, monitor='val_acc', threshold=0.97):
+    super().__init__()
+    self.monitor = monitor
+    self.threshold = threshold
+
+  def on_epoch_end(self, epoch, logs=None):
+    current = logs.get(self.monitor)
+    if current >= self.threshold:
+      self.model.stop_training = True
+
+
 class StatefulCheckpoint(C.ModelCheckpoint):
   """Save extra checkpoint data to resume training."""
   def __init__(self, weight_file, state_file=None, **kwargs):

@@ -4,7 +4,7 @@ import numpy as np
 import keras.callbacks as C
 
 from data_gen import CHAR_IDX, IDX_CHAR
-from utils import LogicSeq, StatefulCheckpoint
+from utils import LogicSeq, StatefulCheckpoint, ThresholdStop
 from models import build_model
 
 # Arguments
@@ -57,18 +57,6 @@ def ask(context, query, model):
     print(o)
   return np.asscalar(out[-1])
 
-class EarlyStop(C.Callback):
-  """Stop when monitored value reaches threshold."""
-  def __init__(self, monitor='val_acc', threshold=0.97):
-    super().__init__()
-    self.monitor = monitor
-    self.threshold = threshold
-
-  def on_epoch_end(self, epoch, logs=None):
-    current = logs.get(self.monitor)
-    if current >= self.threshold:
-      self.model.stop_training = True
-
 def train():
   """Train the given model saving weights to model_file."""
   # Setup callbacks
@@ -76,7 +64,7 @@ def train():
                                  verbose=1,
                                  save_best_only=True,
                                  save_weights_only=True),
-               EarlyStop(),
+               ThresholdStop(),
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:
