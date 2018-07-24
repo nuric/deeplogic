@@ -14,7 +14,7 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Evaluate logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
-parser.add_argument("-mf", "--model_file", help="Model filename.")
+parser.add_argument("model_file", help="Model filename.")
 parser.add_argument("-md", "--model_dir", help="Model weights directory ending with /.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
@@ -26,8 +26,7 @@ parser.add_argument("-p", "--pad", action="store_true", help="Pad context with b
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
-MODEL_FNAME = ("curr_" if ARGS.curriculum else "multi_") + MODEL_NAME + str(ARGS.dim)
-MODEL_FNAME = ARGS.model_file or MODEL_FNAME
+MODEL_FNAME = ARGS.model_file
 MODEL_WF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.h5'
 
 # Stop numpy scientific printing
