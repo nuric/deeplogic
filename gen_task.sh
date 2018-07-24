@@ -139,7 +139,7 @@ eval_len() {
 
 acc() {
   echo "Generating accumulating training data..."
-  for i in {1..12}; do
+  for i in {1..5}; do
     F=$DDIR'train_task1-'$i.txt
     TF=$DDIR'test_task1-'$i.txt
     echo Writing to $F $TF
