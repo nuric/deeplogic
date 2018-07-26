@@ -123,13 +123,13 @@ class StatefulCheckpoint(C.ModelCheckpoint):
 
   def on_epoch_end(self, epoch, logs=None):
     """Saves training state as well as weights."""
+    super().on_epoch_end(epoch, logs)
     if self.state_f:
       state = {'epoch': epoch+1, 'best': self.best}
       state.update(logs)
       state.update(self.params)
       with open(self.state_f, 'w') as f:
         json.dump(state, f)
-    super().on_epoch_end(epoch, logs)
 
   def get_last_epoch(self, initial_epoch=0):
     """Return last saved epoch if any, or return default argument."""
