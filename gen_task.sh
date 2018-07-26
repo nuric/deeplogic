@@ -7,109 +7,14 @@ shift
 SIZE=$1
 TSIZE=$((SIZE / 10))
 shift
-
-# Task 1: ground instances
-gen_task1() {
-  $DCMD -cl 1 -pl 1 -t 1 -s $1
-  $DCMD -cl 2 -pl 2 -t 1 -s $1
-  $DCMD -cl 2 -pl 1 -t 1 -s $1
-  $DCMD -cl 1 -pl 2 -t 1 -s $1
-}
-
-# Task 2: variable binding
-gen_task2() {
-  $DCMD -cl 1 -pl 1 -t 2 -s $1
-  $DCMD -cl 2 -pl 1 -t 2 -s $1
-  $DCMD -cl 2 -pl 2 -t 2 -s $1
-  $DCMD -cl 1 -pl 2 -t 2 -s $1
-}
-
-# Task 3: single step deduction
-gen_task3() {
-  $DCMD -cl 1 -pl 1 -t 3 -s $1
-  $DCMD -cl 1 -pl 2 -t 3 -s $1
-  $DCMD -cl 2 -pl 2 -t 3 -s $1
-  $DCMD -cl 2 -pl 1 -t 3 -s $1
-}
-
-# Task 4: double step deduction
-gen_task4() {
-  $DCMD -cl 1 -pl 1 -t 4 -s $1
-  $DCMD -cl 2 -pl 2 -t 4 -s $1
-  $DCMD -cl 2 -pl 1 -t 4 -s $1
-  $DCMD -cl 1 -pl 2 -t 4 -s $1
-}
-
-# Task 5: triple step deduction
-gen_task5() {
-  $DCMD -cl 1 -pl 1 -t 5 -s $1
-  $DCMD -cl 2 -pl 2 -t 5 -s $1
-  $DCMD -cl 2 -pl 1 -t 5 -s $1
-  $DCMD -cl 1 -pl 2 -t 5 -s $1
-}
-
-# Task 6: logical and
-gen_task6() {
-  $DCMD -cl 1 -pl 1 -t 6 -s $1
-  $DCMD -cl 2 -pl 2 -t 6 -s $1
-  $DCMD -cl 2 -pl 1 -t 6 -s $1
-  $DCMD -cl 1 -pl 2 -t 6 -s $1
-}
-
-# Task 7: logical or
-gen_task7() {
-  $DCMD -cl 1 -pl 1 -t 7 -s $1
-  $DCMD -cl 2 -pl 2 -t 7 -s $1
-  $DCMD -cl 2 -pl 1 -t 7 -s $1
-  $DCMD -cl 1 -pl 2 -t 7 -s $1
-}
-
-# Task 8: transitive case
-gen_task8() {
-  $DCMD -cl 1 -pl 1 -t 8 -s $1
-  $DCMD -cl 2 -pl 2 -t 8 -s $1
-  $DCMD -cl 2 -pl 1 -t 8 -s $1
-  $DCMD -cl 1 -pl 2 -t 8 -s $1
-}
-
-# Task 9: single step deduction with NBF
-gen_task9() {
-  $DCMD -cl 1 -pl 1 -t 9 -s $1
-  $DCMD -cl 2 -pl 2 -t 9 -s $1
-  $DCMD -cl 2 -pl 1 -t 9 -s $1
-  $DCMD -cl 1 -pl 2 -t 9 -s $1
-}
-
-# Task 10: double step deduction with NBF
-gen_task10() {
-  $DCMD -cl 1 -pl 1 -t 10 -s $1
-  $DCMD -cl 2 -pl 2 -t 10 -s $1
-  $DCMD -cl 2 -pl 1 -t 10 -s $1
-  $DCMD -cl 1 -pl 2 -t 10 -s $1
-}
-
-# Task 11: logical and with NBF
-gen_task11() {
-  $DCMD -cl 1 -pl 1 -t 11 -s $1
-  $DCMD -cl 2 -pl 2 -t 11 -s $1
-  $DCMD -cl 2 -pl 1 -t 11 -s $1
-  $DCMD -cl 1 -pl 2 -t 11 -s $1
-}
-
-# Task 12: logical or with NBF
-gen_task12() {
-  $DCMD -cl 1 -pl 1 -t 12 -s $1
-  $DCMD -cl 2 -pl 2 -t 12 -s $1
-  $DCMD -cl 2 -pl 1 -t 12 -s $1
-  $DCMD -cl 1 -pl 2 -t 12 -s $1
-}
+ARGS='-pl 2 -cl 2'
 
 eval_single() {
   echo "Generating evaluation data for all tasks..."
   for i in {1..12}; do
     F=$DDIR'test_task'$i.txt
     echo Writing to $F
-    gen_task$i $SIZE > $F
+    $DCMD $ARGS -t $i -s $SIZE > $F
   done
 }
 
@@ -119,7 +24,7 @@ eval_nstep() {
   for i in {1..24}; do
     F=$DDIR'test_nstep'$i.txt
     echo Writing to $F
-    $DCMD -s $SIZE --nstep $i -pl 2 -cl 2 > $F
+    $DCMD $ARGS -s $SIZE --nstep $i > $F
   done
 }
 
@@ -145,8 +50,8 @@ acc() {
     echo Writing to $F $TF
     rm -f $F $TF
     for j in $(seq $i); do
-      gen_task$j $SIZE >> $F
-      gen_task$j $TSIZE >> $TF
+      $DCMD $ARGS -t $j -s $SIZE >> $F
+      $DCMD $ARGS -t $j -s $TSIZE >> $TF
     done
   done
 }
@@ -163,8 +68,8 @@ iter() {
     echo Writing to $F $TF
     rm -rf $F $TF
     for j in ${TS[i]}; do
-      gen_task$j $SIZE >> $F
-      gen_task$j $TSIZE >> $TF
+      $DCMD $ARGS -t $j -s $SIZE >> $F
+      $DCMD $ARGS -t $j -s $TSIZE >> $TF
     done
   done
 }
@@ -176,8 +81,8 @@ all() {
   echo Writing to $F $TF
   rm -f $F $TF
   for i in {1..12}; do
-    gen_task$i $SIZE >> $F
-    gen_task$i $TSIZE >> $TF
+    $DCMD $ARGS -t $i -s $SIZE >> $F
+    $DCMD $ARGS -t $i -s $TSIZE >> $TF
   done
 }
 
@@ -189,8 +94,8 @@ custom() {
   rm -f $F $TF
   for i in "$@"; do
     echo Generating task $i
-    gen_task$i $SIZE >> $F
-    gen_task$i $TSIZE >> $TF
+    $DCMD $ARGS -t $i -s $SIZE >> $F
+    $DCMD $ARGS -t $i -s $TSIZE >> $TF
   done
 }
 

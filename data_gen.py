@@ -37,7 +37,7 @@ def r_symbols(size, symbols, length, used=None):
     return R.sample(symbols, size)
   rset, used = set(), set(used or [])
   while len(rset) < size:
-    s = r_string(symbols, length)
+    s = r_string(symbols, R.randint(1, length))
     if s not in used:
       rset.add(s)
   return list(rset)
