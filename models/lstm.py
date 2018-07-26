@@ -5,7 +5,7 @@ from keras.models import Model
 
 # pylint: disable=line-too-long
 
-def build_model(char_size=27, iterations=4, dim=64, training=True):
+def build_model(char_size=27, dim=64, training=True, **kwargs):
   """Build the model."""
   # Inputs
   # Context: (rules, preds, chars,)
@@ -24,26 +24,18 @@ def build_model(char_size=27, iterations=4, dim=64, training=True):
   embedded_ctx = onehot(flat_ctx) # (?, rules*preds*chars, char_size)
   embedded_q = onehot(query) # (?, chars, char_size)
 
-  # Initial pass
-  init_lstm = L.LSTM(dim, return_state=True, name='init_lstm')
-  _, *states = init_lstm(embedded_q)
-  init_lstm.return_sequences = True
-  ctx, *states = init_lstm(embedded_ctx, initial_state=states)
-
-  # Reused layers over iterations
-  lstm = L.LSTM(dim, return_sequences=True, return_state=True, name='lstm')
-
-  # Iterations
-  for _ in range(iterations):
-    ctx, *states = lstm(ctx, initial_state=states)
+  # Read query
+  _, *states = L.LSTM(dim, return_state=True, name='query_lstm')(embedded_q)
+  # Read context
+  out, *states = L.LSTM(dim, return_state=True, name='ctx_lstm')(embedded_ctx, initial_state=states)
 
   # Prediction
-  out = L.concatenate(states, name='final_states')
+  out = L.concatenate([out]+states, name='final_states')
   out = L.Dense(1, activation='sigmoid', name='out')(out)
 
   model = Model([context, query], out)
   if training:
     model.compile(loss='binary_crossentropy',
-                  optimizer='rmsprop',
+                  optimizer='adam',
                   metrics=['acc'])
   return model
