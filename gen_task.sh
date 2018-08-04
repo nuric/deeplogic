@@ -7,7 +7,7 @@ shift
 SIZE=$1
 TSIZE=$((SIZE / 10))
 shift
-ARGS='-pl 2 -cl 2'
+ARGS='-pl 2 -cl 2 -ns 2'
 
 eval_single() {
   echo "Generating evaluation data for all tasks..."
