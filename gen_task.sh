@@ -59,10 +59,9 @@ acc() {
 iter() {
   echo "Generating tasks based on iteration..."
   TS[1]="1 2"
-  TS[2]="1 2 3 6 7 9 11 12"
-  TS[3]="1 2 3 4 6 7 9 10 11 12"
-  TS[4]="1 2 3 4 5 6 7 8 9 10 11 12"
-  for i in {1..4}; do
+  TS[2]="1 2 3 7 9 12"
+  TS[3]="1 2 3 4 6 7 8 9 10 11 12"
+  for i in {1..3}; do
     F=$DDIR'train_iter'$i.txt
     TF=$DDIR'test_iter'$i.txt
     echo Writing to $F $TF
