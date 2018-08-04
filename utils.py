@@ -125,7 +125,8 @@ class StatefulCheckpoint(C.ModelCheckpoint):
     """Saves training state as well as weights."""
     super().on_epoch_end(epoch, logs)
     if self.state_f:
-      state = {'epoch': epoch+1, 'best': self.best}
+      state = {'epoch': epoch+1, 'best': self.best,
+               'hostname': self.hostname}
       state.update(logs)
       state.update(self.params)
       with open(self.state_f, 'w') as f:
