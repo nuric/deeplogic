@@ -29,7 +29,7 @@ MODEL_NAME = ARGS.model
 MODEL_FNAME = ("curr_" if ARGS.curriculum else "multi_") + MODEL_NAME + str(ARGS.dim)
 MODEL_FNAME = ARGS.model_file or MODEL_FNAME
 MODEL_WF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.h5'
-MODEL_SF = 'outs/' + MODEL_FNAME + '.json'
+MODEL_SF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.json'
 
 # Stop numpy scientific printing
 np.set_printoptions(suppress=True)
@@ -65,6 +65,7 @@ def train():
                                  save_best_only=True,
                                  save_weights_only=True),
                ThresholdStop(),
+               C.EarlyStopping(patience=10, verbose=1),
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
   try:
