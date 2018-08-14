@@ -14,8 +14,7 @@ parser.add_argument("-mf", "--model_file", help="Model filename.")
 parser.add_argument("-md", "--model_dir", help="Model weights directory ending with /.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
-parser.add_argument("--trainf", default="data/train.txt", help="Training data file.")
-parser.add_argument("--testf", default="data/test.txt", help="Testing data file.")
+parser.add_argument("-ts", "--tasks", nargs='*', type=int, help="Tasks to train on, blank for all tasks.")
 parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
 parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
 parser.add_argument("-ic", "--iter_curriculum", action="store_true", help="Iterative curriculum learning.")
@@ -49,7 +48,7 @@ def ask(context, query, model):
   """Predict output for given context and query."""
   rs = context.split('.')[:-1] # split rules
   rr = [r + '.' for r in rs]
-  dgen = LogicSeq([(rr, query, 0)], 1, False, False, pad=ARGS.pad)
+  dgen = LogicSeq([[(rr, query, 0)]], 1, False, False, pad=ARGS.pad)
   # print(dgen[0])
   out = model.predict_generator(dgen)
   # print("SHAPES:", [o.shape for o in out])
@@ -65,36 +64,36 @@ def train():
                                  save_best_only=True,
                                  save_weights_only=True),
                ThresholdStop(),
-               C.EarlyStopping(patience=10, verbose=1),
+               C.EarlyStopping(monitor='loss', patience=10, verbose=1),
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
+  ft = "data/{}_task{}.txt"
   try:
     if ARGS.curriculum:
-      # Train in an incremental fashion
-      for i, its in zip(range(1, 6), [1, 1, 2, 3, 4]):
+      # Train in an incremental fashion based on task count
+      for i, its, bs in zip(range(1, 6), [1, 1, 2, 3, 4], [32, 32, 36, 36, 25]):
         print("TASK:", i, "ITERATIONS:", its)
         model = create_model(iterations=its)
         callbacks[0].best = np.Inf # Reset checkpoint
-        ft = "data/{}_task1-{}.txt"
-        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size, pad=ARGS.pad)
-        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size, pad=ARGS.pad)
+        traind = LogicSeq.from_files([ft.format("train", j) for j in range(1, i+1)], bs, pad=ARGS.pad)
+        vald = LogicSeq.from_files([ft.format("val", j) for j in range(1, i+1)], bs, pad=ARGS.pad)
         model.fit_generator(traind, epochs=i*2,
                             callbacks=callbacks,
-                            validation_data=testd,
+                            validation_data=vald,
                             verbose=2,
                             shuffle=True)
     elif ARGS.iter_curriculum:
       # Train incrementally based on iteration count
-      for i in range(1, 5):
+      iters = [[1,2], [1,2,3,7,9,12], [1,2,3,4,6,7,8,9,10,11,12]]
+      for i, tasks, bs in zip(range(len(iters)), iters, [32, 36, 33]):
         print("ITER:", i)
         model = create_model(iterations=i)
         callbacks[0].best = np.Inf # Reset checkpoint
-        ft = "data/{}_iter{}.txt"
-        traind = LogicSeq.from_file(ft.format("train", i), ARGS.batch_size, pad=ARGS.pad)
-        testd = LogicSeq.from_file(ft.format("test", i), ARGS.batch_size, pad=ARGS.pad)
-        model.fit_generator(traind, epochs=i*10,
+        traind = LogicSeq.from_files([ft.format("train", j) for j in tasks], bs, pad=ARGS.pad)
+        vald = LogicSeq.from_files([ft.format("val", j) for j in tasks], bs, pad=ARGS.pad)
+        model.fit_generator(traind, epochs=i*20,
                             callbacks=callbacks,
-                            validation_data=testd,
+                            validation_data=vald,
                             verbose=2,
                             shuffle=True)
     # Run full training
@@ -103,11 +102,12 @@ def train():
     callbacks[0] = StatefulCheckpoint(MODEL_WF, MODEL_SF,
                                       verbose=1, save_best_only=True,
                                       save_weights_only=True)
-    traind = LogicSeq.from_file(ARGS.trainf, ARGS.batch_size, pad=ARGS.pad)
-    testd = LogicSeq.from_file(ARGS.testf, ARGS.batch_size, pad=ARGS.pad)
+    tasks = ARGS.tasks or range(1, 13)
+    traind = LogicSeq.from_files([ft.format("train", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
+    vald = LogicSeq.from_files([ft.format("val", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
     model.fit_generator(traind, epochs=120,
                         callbacks=callbacks,
-                        validation_data=testd,
+                        validation_data=vald,
                         verbose=2, shuffle=True,
                         initial_epoch=callbacks[0].get_last_epoch())
   finally:
@@ -175,7 +175,7 @@ def ilp(training=True):
     ctx = "b(h).v(O):-c(O).c(a)."
     ctx = ctx.split('.')[:-1] # split rules
     ctx = [r + '.' for r in ctx]
-    dgen = LogicSeq([(ctx, "f(h).", 0)], 1, False, False)
+    dgen = LogicSeq([[(ctx, "f(h).", 0)]], 1, False, False)
     print("TEMPLATES:")
     outs = model.predict_on_batch(dgen[0])
     ts, out = outs[0], outs[-1]

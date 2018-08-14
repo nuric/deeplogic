@@ -75,11 +75,11 @@ iter() {
 
 all() {
   echo "Generating all tasks..."
-  F=$DDIR'train.txt'
-  TF=$DDIR'test.txt'
-  echo Writing to $F $TF
-  rm -f $F $TF
   for i in {1..12}; do
+    F=$DDIR'train_task'$i.txt
+    TF=$DDIR'val_task'$i.txt
+    echo Writing to $F $TF
+    rm -f $F $TF
     $DCMD $ARGS -t $i -s $SIZE >> $F
     $DCMD $ARGS -t $i -s $TSIZE >> $TF
   done

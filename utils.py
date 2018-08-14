@@ -12,23 +12,29 @@ from data_gen import CHAR_IDX
 
 class LogicSeq(Sequence):
   """Sequence generator for G-Research data."""
-  def __init__(self, data, batch_size, train=True, shuffle=True, pad=False):
-    self.data = data or list()
+  def __init__(self, datasets, batch_size, train=True, shuffle=True, pad=False):
+    self.datasets = datasets or [[]]
+    # We distribute batch evenly so it must divide the batc size
+    assert batch_size % len(self.datasets) == 0, "Number of datasets must divide batch size."
     self.batch_size = batch_size
     self.train = train
     self.shuffle = shuffle
     self.pad = pad
 
   def __len__(self):
-    return int(np.ceil(len(self.data) / self.batch_size))
+    return int(np.ceil(sum(map(len, self.datasets))/ self.batch_size))
 
   def on_epoch_end(self):
     """Shuffle data at the end of epoch."""
     if self.shuffle:
-      np.random.shuffle(self.data)
+      for ds in self.datasets:
+        np.random.shuffle(ds)
 
   def __getitem__(self, idx):
-    dpoints = self.data[idx*self.batch_size:(idx+1)*self.batch_size]
+    dpoints = list()
+    per_ds_bs = self.batch_size//len(self.datasets)
+    for ds in self.datasets:
+      dpoints.extend(ds[idx*per_ds_bs:(idx+1)*per_ds_bs])
     # Create batch
     ctxs, queries, targets = list(), list(), list()
     for ctx, q, t in dpoints:
@@ -37,7 +43,7 @@ class LogicSeq(Sequence):
       rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
                for r in ctx]
       if self.pad:
-        rules.append(['']) # Append a blank rule
+        rules.append(['()']) # Append a blank rule
       rules = [[[CHAR_IDX[c] for c in pred]
                 for pred in r]
                for r in rules]
@@ -63,9 +69,9 @@ class LogicSeq(Sequence):
       return xs, np.array(targets)
     return xs
 
-  @classmethod
-  def from_file(cls, fname, batch_size, pad=False, verbose=True):
-    """Load logic programs from given fname."""
+  @staticmethod
+  def parse_file(fname, shuffle=True):
+    """Parse logic program data given fname."""
     dpoints = list()
     with open(fname) as f:
       ctx, isnew_ctx = list(), False
@@ -80,11 +86,26 @@ class LogicSeq(Sequence):
             ctx = list()
             isnew_ctx = False
           ctx.append(l)
-    np.random.shuffle(dpoints)
+    if shuffle:
+      np.random.shuffle(dpoints)
+    return dpoints
+
+  @classmethod
+  def from_file(cls, fname, batch_size, pad=False, verbose=True):
+    """Load logic programs from given fname."""
+    dpoints = cls.parse_file(fname)
     if verbose:
       print("Example data points from:", fname)
       print(dpoints[:4])
-    return cls(dpoints, batch_size, pad=pad)
+    return cls([dpoints], batch_size, pad=pad)
+
+  @classmethod
+  def from_files(cls, fnames, batch_size, pad=False, verbose=True):
+    """Load several logic program files return a singel sequence generator."""
+    datasets = [cls.parse_file(f) for f in fnames]
+    if verbose:
+      print("Loaded files:", fnames)
+    return cls(datasets, batch_size, pad=pad)
 
 
 class ThresholdStop(C.Callback):

@@ -127,7 +127,7 @@ def eval_const_len():
 
 def get_pca(context, model, dims=2):
   """Plot the PCA of predicate embeddings."""
-  dgen = LogicSeq([(context, "z(z).", 0)], 1, False, False)
+  dgen = LogicSeq([[(context, "z(z).", 0)]], 1, False, False)
   embds = model.predict_generator(dgen)
   embds = embds.squeeze()
   pca = PCA(dims)
@@ -243,7 +243,7 @@ def plot_attention():
     print("CTX:", ctx)
     rs = ctx.split('.')[:-1]
     ctx = [r + '.' for r in rs]
-    dgen = LogicSeq([(ctx, "p(a).", 0)], 1, False, False, pad=ARGS.pad)
+    dgen = LogicSeq([[(ctx, "p(a).", 0)]], 1, False, False, pad=ARGS.pad)
     out = model.predict_generator(dgen)
     sims = out[:-1]
     out = np.round(np.asscalar(out[-1]), 2)
