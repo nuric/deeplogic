@@ -10,14 +10,13 @@ from models import build_model
 # Arguments
 parser = argparse.ArgumentParser(description="Train logic-memnn models.")
 parser.add_argument("model", help="The name of the module to train.")
-parser.add_argument("-mf", "--model_file", help="Model filename.")
+parser.add_argument("model_file", help="Model filename.")
 parser.add_argument("-md", "--model_dir", help="Model weights directory ending with /.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-d", "--debug", action="store_true", help="Only predict single data point.")
 parser.add_argument("-ts", "--tasks", nargs='*', type=int, help="Tasks to train on, blank for all tasks.")
+parser.add_argument("-e", "--epochs", default=120, type=int, help="Number of epochs to train.")
 parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
-parser.add_argument("-c", "--curriculum", action="store_true", help="Curriculum learning.")
-parser.add_argument("-ic", "--iter_curriculum", action="store_true", help="Iterative curriculum learning.")
 parser.add_argument("-i", "--ilp", action="store_true", help="Run ILP task.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Training batch_size.")
@@ -25,8 +24,7 @@ parser.add_argument("-p", "--pad", action="store_true", help="Pad context with b
 ARGS = parser.parse_args()
 
 MODEL_NAME = ARGS.model
-MODEL_FNAME = ("curr_" if ARGS.curriculum else "multi_") + MODEL_NAME + str(ARGS.dim)
-MODEL_FNAME = ARGS.model_file or MODEL_FNAME
+MODEL_FNAME = ARGS.model_file
 MODEL_WF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.h5'
 MODEL_SF = (ARGS.model_dir or "weights/") + MODEL_FNAME + '.json'
 
@@ -68,60 +66,19 @@ def train():
                C.TerminateOnNaN()]
   # Big data machine learning in the cloud
   ft = "data/{}_task{}.txt"
-  try:
-    if ARGS.curriculum:
-      # Train in an incremental fashion based on task count
-      for i, its, bs in zip(range(1, 6), [1, 1, 2, 3, 4], [32, 32, 36, 36, 25]):
-        print("TASK:", i, "ITERATIONS:", its)
-        model = create_model(iterations=its)
-        callbacks[0].best = np.Inf # Reset checkpoint
-        traind = LogicSeq.from_files([ft.format("train", j) for j in range(1, i+1)], bs, pad=ARGS.pad)
-        vald = LogicSeq.from_files([ft.format("val", j) for j in range(1, i+1)], bs, pad=ARGS.pad)
-        model.fit_generator(traind, epochs=i*2,
-                            callbacks=callbacks,
-                            validation_data=vald,
-                            verbose=2,
-                            shuffle=True)
-    elif ARGS.iter_curriculum:
-      # Train incrementally based on iteration count
-      iters = [[1,2], [1,2,3,7,9,12], [1,2,3,4,6,7,8,9,10,11,12]]
-      for i, tasks, bs in zip(range(len(iters)), iters, [32, 36, 33]):
-        print("ITER:", i)
-        model = create_model(iterations=i)
-        callbacks[0].best = np.Inf # Reset checkpoint
-        traind = LogicSeq.from_files([ft.format("train", j) for j in tasks], bs, pad=ARGS.pad)
-        vald = LogicSeq.from_files([ft.format("val", j) for j in tasks], bs, pad=ARGS.pad)
-        model.fit_generator(traind, epochs=i*20,
-                            callbacks=callbacks,
-                            validation_data=vald,
-                            verbose=2,
-                            shuffle=True)
-    # Run full training
-    model = create_model(iterations=ARGS.iterations)
-    # For long running training swap in stateful checkpoint
-    callbacks[0] = StatefulCheckpoint(MODEL_WF, MODEL_SF,
-                                      verbose=1, save_best_only=True,
-                                      save_weights_only=True)
-    tasks = ARGS.tasks or range(1, 13)
-    traind = LogicSeq.from_files([ft.format("train", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
-    vald = LogicSeq.from_files([ft.format("val", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
-    model.fit_generator(traind, epochs=120,
-                        callbacks=callbacks,
-                        validation_data=vald,
-                        verbose=2, shuffle=True,
-                        initial_epoch=callbacks[0].get_last_epoch())
-  finally:
-    print("Training terminated.")
-    # Dump some examples for debugging
-    samples = [("p(a).", "p(a)."),
-               ("p(a).", "p(b)."),
-               ("p(X).", "p(c)."),
-               ("p(X,Y).", "q(a,b)."),
-               ("p(X,X).", "p(a,b)."),
-               ("p(X,X).", "p(a,a)."),
-               ("p(X):-q(X).r(a).", "p(a).")]
-    for c, q in samples:
-      print("{} ? {} -> {}".format(c, q, ask(c, q, model)))
+  model = create_model(iterations=ARGS.iterations)
+  # For long running training swap in stateful checkpoint
+  callbacks[0] = StatefulCheckpoint(MODEL_WF, MODEL_SF,
+                                    verbose=1, save_best_only=True,
+                                    save_weights_only=True)
+  tasks = ARGS.tasks or range(1, 13)
+  traind = LogicSeq.from_files([ft.format("train", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
+  vald = LogicSeq.from_files([ft.format("val", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
+  model.fit_generator(traind, epochs=ARGS.epochs,
+                      callbacks=callbacks,
+                      validation_data=vald,
+                      verbose=2, shuffle=True,
+                      initial_epoch=callbacks[0].get_last_epoch())
 
 def debug():
   """Run a single data point for debugging."""
