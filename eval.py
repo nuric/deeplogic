@@ -49,11 +49,9 @@ def evaluate():
   results = list()
   for i in range(1, 13):
     dgen = LogicSeq.from_file("data/test_task{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad, verbose=False)
-    r = model.evaluate_generator(dgen)
-    print("Task: {:2}".format(i), r)
-    results.append(r)
-  results = np.array(results)
-  print("MEAN:", np.mean(results, axis=0))
+    r = model.evaluate_generator(dgen) # [loss, acc]
+    results.append(r[1])
+  print("RES:", ','.join(map(str, results)), "MEAN:", np.mean(results, axis=0))
 
 def eval_nstep():
   """Evaluate model on nstep deduction."""
