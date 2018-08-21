@@ -123,8 +123,9 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, pca=False):
   context = L.Input(shape=(None, None, None,), name='context', dtype='int32')
   query = L.Input(shape=(None,), name='query', dtype='int32')
 
+  # Flatten preds to embed entire rules
   var_flat = L.Lambda(lambda x: K.reshape(x, K.stack([K.shape(x)[0], -1, K.prod(K.shape(x)[2:])])), name='var_flat')
-  flat_ctx = var_flat(context)
+  flat_ctx = var_flat(context) # (?, rules, preds*chars)
 
   # Onehot embedding
   # Contextual embeddeding of symbols
@@ -139,7 +140,7 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, pca=False):
 
   embed_pred = ZeroGRU(dim, go_backwards=True, name='embed_pred')
   embedded_predq = embed_pred(embedded_q) # (?, dim)
-  # For every rule, for every predicate, embed the predicate
+  # Embed every rule
   embedded_rules = NestedTimeDist(embed_pred, name='rule_embed')(embedded_ctx)
   # (?, rules, dim)
 
