@@ -11,10 +11,14 @@ ARGS='-pl 2 -cl 2 -ns 2'
 
 eval_single() {
   echo "Generating evaluation data for all tasks..."
-  for i in {1..12}; do
-    F=$DDIR'test_task'$i.txt
-    echo Writing to $F
-    $DCMD $ARGS -t $i -s $SIZE > $F
+  fns=('val' 'easy' 'med' 'hard')
+  ns=(2 4 8 12)
+  for i in {0..3}; do
+    for j in {1..12}; do
+      F=$DDIR'test_'${fns[i]}'_task'$j.txt
+      echo Writing to $F
+      $DCMD -pl ${ns[i]} -cl ${ns[i]} -ns ${ns[i]} -t $j -s $SIZE > $F
+    done
   done
 }
 
