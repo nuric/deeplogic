@@ -11,8 +11,9 @@ from data_gen import CHAR_IDX
 
 
 class LogicSeq(Sequence):
-  """Sequence generator for G-Research data."""
-  def __init__(self, datasets, batch_size, train=True, shuffle=True, pad=False):
+  """Sequence generator for normal logic programs."""
+  def __init__(self, datasets, batch_size, train=True,
+               shuffle=True, pad=False, zeropad=True):
     self.datasets = datasets or [[]]
     # We distribute batch evenly so it must divide the batc size
     assert batch_size % len(self.datasets) == 0, "Number of datasets must divide batch size."
@@ -20,6 +21,7 @@ class LogicSeq(Sequence):
     self.train = train
     self.shuffle = shuffle
     self.pad = pad
+    self.zeropad = zeropad
 
   def __len__(self):
     return int(np.ceil(sum(map(len, self.datasets))/ self.batch_size))
@@ -43,7 +45,9 @@ class LogicSeq(Sequence):
       rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
                for r in ctx]
       if self.pad:
-        rules.append(['()']) # Append a blank rule
+        rules.append(['()']) # Append null sentinel
+      if self.zeropad:
+        rules.append(['']) # Append zero padding
       rules = [[[CHAR_IDX[c] for c in pred]
                 for pred in r]
                for r in rules]

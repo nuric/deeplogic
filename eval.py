@@ -126,7 +126,8 @@ def eval_const_len():
 
 def get_pca(context, model, dims=2):
   """Plot the PCA of predicate embeddings."""
-  dgen = LogicSeq([[(context, "z(z).", 0)]], 1, False, False)
+  dgen = LogicSeq([[(context, "z(z).", 0)]], 1,
+                  train=False, shuffle=False, zeropad=False)
   embds = model.predict_generator(dgen)
   embds = embds.squeeze()
   pca = PCA(dims)
