@@ -3,9 +3,6 @@ import argparse
 from glob import glob
 import numpy as np
 from sklearn.decomposition import PCA
-import matplotlib
-matplotlib.use("Agg") # Bypass X server
-import matplotlib.pyplot as plt
 
 from data_gen import CHAR_IDX
 from utils import LogicSeq
@@ -18,12 +15,17 @@ parser.add_argument("model_file", help="Model filename.")
 parser.add_argument("-md", "--model_dir", help="Model weights directory ending with /.")
 parser.add_argument("--dim", default=64, type=int, help="Latent dimension.")
 parser.add_argument("-f", "--function", default="evaluate", help="Function to run.")
-parser.add_argument("--outf", default="plot.png", help="Plot output file.")
+parser.add_argument("--outf", help="Plot to output file instead of rendering.")
 parser.add_argument("-s", "--summary", action="store_true", help="Dump model summary on creation.")
 parser.add_argument("-its", "--iterations", default=4, type=int, help="Number of model iterations.")
 parser.add_argument("-bs", "--batch_size", default=32, type=int, help="Evaluation batch_size.")
 parser.add_argument("-p", "--pad", action="store_true", help="Pad context with blank rule.")
 ARGS = parser.parse_args()
+
+if ARGS.outf:
+  import matplotlib
+  matplotlib.use("Agg") # Bypass X server
+import matplotlib.pyplot as plt
 
 MODEL_NAME = ARGS.model
 MODEL_FNAME = ARGS.model_file
@@ -54,6 +56,13 @@ def evaluate():
       results.append(acc)
     print(s.upper(), ','.join(map(str, results)), "MEAN:", np.mean(results, axis=0))
 
+def showsave_plot():
+  """Show or save plot."""
+  if ARGS.outf:
+    plt.savefig(ARGS.outf, bbox_inches='tight')
+  else:
+    plt.show()
+
 def eval_nstep():
   """Evaluate model on nstep deduction."""
   # Load available models
@@ -83,7 +92,7 @@ def eval_nstep():
   plt.xlabel("# of steps")
   plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   plt.legend()
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 def eval_len(item='pl'):
   """Evaluate model on increasing constant and predicate lengths."""
@@ -114,7 +123,7 @@ def eval_len(item='pl'):
   else:
     plt.xlabel("Length of constants (characters)")
   plt.legend()
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 def eval_pred_len():
   """Evaluate model on increasing predicate lengths."""
@@ -146,7 +155,8 @@ def plot_single_preds():
   model = create_model(pca=True)
   syms = "abcdefghijklmnopqrstuvwxyz"
   ctx, splits = list(), list()
-  preds = ['p', 'q', 'r', 's', 't', 'v', 'u']
+  preds = list("pqrv")
+  preds.extend([''.join([e]*2) for e in preds])
   for p in preds:
     for c in syms:
       ctx.append("{}({}).".format(p,c))
@@ -159,10 +169,10 @@ def plot_single_preds():
   for sp in splits:
     x, y, z = embds[prev_sp:sp, 0], embds[prev_sp:sp, 1], embds[prev_sp:sp, -1]
     ax.scatter(x, y, z, depthshade=False)
-    for i in [2, 3]:
+    for i in map(syms.index, "fdgm"):
       ax.text(x[i], y[i], z[i], ctx[prev_sp+i])
     prev_sp = sp
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 def plot_pred_saturation():
   """Plot predicate embedding saturation."""
@@ -193,7 +203,7 @@ def plot_pred_saturation():
   X, Y = np.meshgrid(X, Y)
   Z = np.sqrt((X-embds[-1,0])**2 + (Y-embds[-1,1])**2)
   plt.contour(X, Y, Z, colors='grey')
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 def plot_template(preds, temps):
   """Plot PCA of templates with given predicates."""
@@ -211,7 +221,7 @@ def plot_template(preds, temps):
     pred, x, y = ctx[sp-1], embds[sp-1, 0], embds[sp-1, 1]
     xf, yf = offset(x), offset(y)
     plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 def plot_struct_preds():
   """Plot embeddings of different structural predicates."""
@@ -263,7 +273,7 @@ def plot_attention():
       # plt.colorbar(fraction=0.05)
     print("OUT:", out)
   plt.tight_layout()
-  plt.savefig(ARGS.outf, bbox_inches='tight')
+  showsave_plot()
 
 if __name__ == '__main__':
   globals()[ARGS.function]()
