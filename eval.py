@@ -26,6 +26,7 @@ if ARGS.outf:
   import matplotlib
   matplotlib.use("Agg") # Bypass X server
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 MODEL_NAME = ARGS.model
 MODEL_FNAME = ARGS.model_file
@@ -231,10 +232,10 @@ def plot_template(preds, temps):
 def plot_struct_preds():
   """Plot embeddings of different structural predicates."""
   ps = ['w', 'q', 'r', 's', 't', 'v', 'u', 'p']
-  temps = ["{}(X,Y).", "{}(A,A).", "{}(X).", "{}(Z).",
+  temps = ["{}(X,Y).", "{}(X,X).", "{}(X).", "{}(Z).",
            "{}(a,b).", "{}(x,y).", "{}(a).", "{}(xy).",
            "-{}(a,b).", "-{}(x,y).", "-{}(a).", "-{}(xy).",
-           "-{}(X,Y).", "-{}(A,A).", "-{}(X).", "-{}(Z)."]
+           "-{}(X,Y).", "-{}(X,X).", "-{}(X).", "-{}(Z)."]
   plot_template(ps, temps)
 
 def plot_rules():
@@ -253,7 +254,7 @@ def plot_attention():
   ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).s(b).",
           "p(X):-q(X);r(X).r(a).q(a).r(b).q(b).",
           "p(X):-q(X).p(X):-r(X).p(b).r(a).q(b)."]
-  plt.set_cmap("Blues")
+  fig, axes = plt.subplots(1, 3, figsize=(6.4, 2.4))
   for i, ctx in enumerate(ctxs):
     print("CTX:", ctx)
     rs = ctx.split('.')[:-1]
@@ -265,17 +266,11 @@ def plot_attention():
     sims = np.stack(sims, axis=0).squeeze()
     print("ATTS:", sims)
     sims = sims.T
-    ax = plt.subplot(1, len(ctxs), i+1)
-    ax.xaxis.tick_top()
-    plt.imshow(sims)
-    if ARGS.pad:
-      plt.yticks(range(len(rs)+1), rs + ["$\phi$"])
-    else:
-      plt.yticks(range(len(rs)), rs)
-    plt.xlabel("p(Q|C)=" + str(out))
-    plt.xticks(range(4), range(1, 5))
-    # if i == len(ctxs) - 1:
-      # plt.colorbar(fraction=0.05)
+    ticks = (["()"] if ARGS.pad else []) + ["$\phi$"]
+    axes[i].get_xaxis().set_ticks_position('top')
+    sns.heatmap(sims, vmin=0, vmax=1, cmap="Blues", yticklabels=rs + ticks,
+                linewidths=0.5, square=True, cbar=False, ax=axes[i])
+    axes[i].set_xlabel("p(Q|C)=" + str(out))
     print("OUT:", out)
   plt.tight_layout()
   showsave_plot()
