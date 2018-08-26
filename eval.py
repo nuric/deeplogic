@@ -178,7 +178,7 @@ def plot_pred_saturation():
   """Plot predicate embedding saturation."""
   model = create_model(pca=True)
   ctx, splits = list(), list()
-  for i in range(2, 33):
+  for i in range(2, 65):
     p = "".join(["p"]*i)
     ctx.append("{}(a).".format(p))
     splits.append(len(ctx))
@@ -192,17 +192,22 @@ def plot_pred_saturation():
     if count <= 6:
       xf, yf = offset(x), offset(y)
       plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
-    elif i % 3 == 0 and count < 20 or i == len(splits)-1:
+    elif i % 3 == 0 and i < 50 or i == len(splits)-1 or i == len(splits)-2:
       pred = str(count)+"*p(a)"
       xf, yf = offset(x), offset(y)
       plt.annotate(pred, xy=(x, y), xytext=(xf, yf), textcoords='offset points', arrowprops={'arrowstyle': '-'})
     prev_sp = sp
   # Plot contour
-  X = np.linspace(min(embds[:,0]), max(embds[:,0]), 40)
-  Y = np.linspace(min(embds[:,1]), max(embds[:,1]), 40)
+  plt.xlim(-2, 2)
+  xmin, xmax = plt.xlim()
+  X = np.linspace(xmin, xmax, 40)
+  ymin, ymax = plt.ylim()
+  Y = np.linspace(ymin, ymax, 40)
   X, Y = np.meshgrid(X, Y)
   Z = np.sqrt((X-embds[-1,0])**2 + (Y-embds[-1,1])**2)
-  plt.contour(X, Y, Z, colors='grey')
+  plt.contour(X, Y, Z, colors='grey', alpha=0.2, linestyles='dashed')
+  Z = np.sqrt((X-embds[-2,0])**2 + (Y-embds[-2,1])**2)
+  plt.contour(X, Y, Z, colors='grey', alpha=0.2, linestyles='dashed')
   showsave_plot()
 
 def plot_template(preds, temps):
