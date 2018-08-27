@@ -25,7 +25,7 @@ eval_single() {
 eval_nstep() {
   echo "Generating nstep evaluation data."
   rm -f $DDIR'test_nstep'*.txt
-  for i in {1..24}; do
+  for i in {1..32}; do
     F=$DDIR'test_nstep'$i.txt
     echo Writing to $F
     $DCMD $ARGS -s $SIZE --nstep $i > $F

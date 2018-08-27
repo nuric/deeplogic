@@ -2,6 +2,7 @@
 import argparse
 from glob import glob
 import numpy as np
+import pandas as pd
 from sklearn.decomposition import PCA
 
 from data_gen import CHAR_IDX
@@ -49,13 +50,14 @@ def create_model(**kwargs):
 def evaluate():
   """Evaluate model on each test data."""
   model = create_model(iterations=ARGS.iterations, training=True)
+  training, _, run = MODEL_FNAME.split('_')
   for s in ['val', 'easy', 'med', 'hard']:
     results = list()
     for i in range(1, 13):
       dgen = LogicSeq.from_file("data/test_{}_task{}.txt".format(s,i), ARGS.batch_size, pad=ARGS.pad, verbose=False)
       _, acc = model.evaluate_generator(dgen) # [loss, acc]
       results.append(acc)
-    print(s.upper(), ','.join(map(str, results)), "MEAN:", np.mean(results, axis=0))
+    print(training, ARGS.model, ARGS.dim, s, run, *results, sep=',')
 
 def showsave_plot():
   """Show or save plot."""
@@ -66,33 +68,31 @@ def showsave_plot():
 
 def eval_nstep():
   """Evaluate model on nstep deduction."""
-  # Load available models
-  models = [(mf.split('/')[1].split('.')[0], mf)
-            for mf in glob("weights/*.h5")]
-  print("Found models:", models)
-  # Evaluate every model on test data
-  results = {m[0]:list() for m in models}
-  arange = np.arange(1, 25)
-  for i in arange:
-    dgen = LogicSeq.from_file("data/test_nstep{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad)
-    for mname, mf in models:
-      model = build_model(mname[:-2], mf,
-                          char_size=len(CHAR_IDX)+1,
-                          dim=int(mname[-2:]),
-                          iterations=max(4, i+1))
-      results[mname].append(model.evaluate_generator(dgen)[1])
-  print("RESULTS:")
-  print(results)
+  # Evaluate model on every nstep test data
+  results = list()
+  for i in range(1, 33):
+    dgen = LogicSeq.from_file("data/test_nstep{}.txt".format(i), ARGS.batch_size, pad=ARGS.pad, verbose=False)
+    model = create_model(iterations=max(ARGS.iterations, i+1), training=True)
+    results.append(model.evaluate_generator(dgen)[1])
+  training, _, run = MODEL_FNAME.split('_')
+  print(training, ARGS.model, ARGS.dim, run, *results, sep=',')
+
+def plot_nstep():
   # Plot the results
-  for mname, rs in results.items():
-    plt.plot(arange, rs, label=mname.upper())
+  df = pd.read_csv("nstep_results.csv")
+  df = df[(df['Dim'] == 64)].drop(columns=['Training', 'Run', 'Dim'])
+  df['Mean'] = df.mean(numeric_only=True, axis=1)
+  idx = df.groupby(['Model'])['Mean'].idxmax()
+  df = df.loc[idx]
+  df = df.drop(columns=['Mean'])
+  df = pd.melt(df, id_vars=['Model'], var_name='NStep', value_name='Acc')
+  df['NStep'] = df['NStep'].astype(int)
+  plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
+  sns.lineplot(x='NStep', y='Acc', hue='Model', data=df, sort=True)
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
-  plt.xlim(1, arange[-1])
-  plt.xticks(arange[::2])
+  plt.xlim(1, 32)
   plt.xlabel("# of steps")
-  plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
-  plt.legend()
   showsave_plot()
 
 def eval_len(item='pl'):
