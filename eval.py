@@ -81,17 +81,19 @@ def plot_nstep():
   """Plot nstep results."""
   # Plot the results
   df = pd.read_csv("nstep_results.csv")
-  df = df[(df['Dim'] == 64)].drop(columns=['Training', 'Run', 'Dim'])
-  df['Mean'] = df.mean(numeric_only=True, axis=1)
   # Get maximum run based on mean
-  idx = df.groupby(['Model'])['Mean'].idxmax()
+  df['Mean'] = df.iloc[:,4:].mean(axis=1)
+  idx = df.groupby(['Model', 'Dim'])['Mean'].idxmax()
   df = df.loc[idx]
   df = df.drop(columns=['Mean'])
-  df = pd.melt(df, id_vars=['Model'], var_name='NStep', value_name='Acc')
+  df = pd.melt(df, id_vars=['Training', 'Model', 'Dim', 'Run'], var_name='NStep', value_name='Acc')
   df['NStep'] = df['NStep'].astype(int)
+  df = df[(df['Dim'] == ARGS.dim)]
+  print(df.head())
   # Create plot
-  plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
+  sns.set_style('whitegrid')
   sns.lineplot(x='NStep', y='Acc', hue='Model', data=df, sort=True)
+  plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
   plt.xlim(1, 32)
@@ -115,15 +117,17 @@ def plot_len():
   """Plot increasing length results."""
   # Plot the results
   df = pd.read_csv("len_results.csv")
-  df = df[((df['Dim'] == 64)) & (~df['Model'].isin(['imasm', 'imarsm']))].drop(columns=['Training', 'Run', 'Dim'])
-  df['Mean'] = df.mean(numeric_only=True, axis=1)
+  df['Mean'] = df.iloc[:,5:].mean(axis=1)
   # Get maximum run based on mean
-  idx = df.groupby(['Model', 'Symbol'])['Mean'].idxmax()
+  idx = df.groupby(['Model', 'Dim', 'Symbol'])['Mean'].idxmax()
   df = df.loc[idx]
   df = df.drop(columns=['Mean'])
-  df = pd.melt(df, id_vars=['Model', 'Symbol'], var_name='Len', value_name='Acc')
+  df = pd.melt(df, id_vars=['Training', 'Model', 'Dim', 'Symbol', 'Run'], var_name='Len', value_name='Acc')
   df['Len'] = df['Len'].astype(int)
+  df = df[(df['Dim'] == ARGS.dim) & (~df['Model'].isin(['imasm', 'imarsm']))]
+  print(df.head())
   # Create plot
+  sns.set_style('whitegrid')
   sns.lineplot(x='Len', y='Acc', hue='Model', style='Symbol', data=df, sort=True)
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
@@ -131,13 +135,28 @@ def plot_len():
   plt.xlabel("Length of symbols")
   showsave_plot()
 
-def eval_pred_len():
-  """Evaluate model on increasing predicate lengths."""
-  eval_len(item='pl')
+def plot_dim():
+  """Plot increasing dimension over increasing difficulty."""
+  df = pd.read_csv("results.csv")
+  df = df[(df['Model'] == ARGS.model) & (df['Training'] == 'curr')]
+  print(df.head())
+  sns.set_style('whitegrid')
+  sns.lineplot(x='Dim', y='Mean', hue='Set', data=df,
+               hue_order=['validation', 'easy', 'medium', 'hard'])
+  plt.ylim(0.5, 1.0)
+  plt.xlim(32, 128)
+  plt.legend(loc='upper left')
+  showsave_plot()
 
-def eval_const_len():
-  """Evaluate model on increasing constant lengths."""
-  eval_len(item='cl')
+def plot_training():
+  """Plot training method on mean accuracy per test set."""
+  df = pd.read_csv("results.csv")
+  df = df[(df['Model'] == ARGS.model)]
+  print(df.head())
+  sns.set_style('whitegrid')
+  sns.barplot(x='Training', y='Mean', hue='Set', data=df)
+  plt.ylim(0.5, 1.0)
+  showsave_plot()
 
 def get_pca(context, model, dims=2):
   """Plot the PCA of predicate embeddings."""
