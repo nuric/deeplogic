@@ -78,15 +78,18 @@ def eval_nstep():
   print(training, ARGS.model, ARGS.dim, run, *results, sep=',')
 
 def plot_nstep():
+  """Plot nstep results."""
   # Plot the results
   df = pd.read_csv("nstep_results.csv")
   df = df[(df['Dim'] == 64)].drop(columns=['Training', 'Run', 'Dim'])
   df['Mean'] = df.mean(numeric_only=True, axis=1)
+  # Get maximum run based on mean
   idx = df.groupby(['Model'])['Mean'].idxmax()
   df = df.loc[idx]
   df = df.drop(columns=['Mean'])
   df = pd.melt(df, id_vars=['Model'], var_name='NStep', value_name='Acc')
   df['NStep'] = df['NStep'].astype(int)
+  # Create plot
   plt.vlines(3, 0.4, 1.0, colors='grey', linestyles='dashed', label='training')
   sns.lineplot(x='NStep', y='Acc', hue='Model', data=df, sort=True)
   plt.ylim(0.4, 1.0)
@@ -97,33 +100,35 @@ def plot_nstep():
 
 def eval_len(item='pl'):
   """Evaluate model on increasing constant and predicate lengths."""
-  # Load available models
-  models = [(mf.split('/')[1].split('.')[0], mf)
-            for mf in glob("weights/*.h5")]
-  print("Found models:", models)
-  results = {m[0]:list() for m in models}
-  models = [(mname, build_model(mname[:-2], mf, char_size=len(CHAR_IDX)+1, dim=int(mname[-2:])))
-            for mname, mf in models]
-  # Evaluate every model on test data
-  arange = np.arange(2, 65)
-  for i in arange:
-    dgen = LogicSeq.from_file("data/test_{}{}.txt".format(item, i), ARGS.batch_size, pad=ARGS.pad)
-    for mname, m in models:
-      results[mname].append(m.evaluate_generator(dgen)[1])
-  print("RESULTS:")
-  print(results)
+  # Evaluate model on increasing length test data
+  model = create_model(iterations=ARGS.iterations, training=True)
+  training, _, run = MODEL_FNAME.split('_')
+  for s in ['pl', 'cl']:
+    results = list()
+    for i in range(2, 65):
+      dgen = LogicSeq.from_file("data/test_{}{}.txt".format(s, i),
+                                ARGS.batch_size, pad=ARGS.pad, verbose=False)
+      results.append(model.evaluate_generator(dgen)[1])
+    print(training, ARGS.model, ARGS.dim, s, run, *results, sep=',')
+
+def plot_len():
+  """Plot increasing length results."""
   # Plot the results
-  for mname, rs in results.items():
-    plt.plot(arange, rs, label=mname.upper())
+  df = pd.read_csv("len_results.csv")
+  df = df[((df['Dim'] == 64)) & (~df['Model'].isin(['imasm', 'imarsm']))].drop(columns=['Training', 'Run', 'Dim'])
+  df['Mean'] = df.mean(numeric_only=True, axis=1)
+  # Get maximum run based on mean
+  idx = df.groupby(['Model', 'Symbol'])['Mean'].idxmax()
+  df = df.loc[idx]
+  df = df.drop(columns=['Mean'])
+  df = pd.melt(df, id_vars=['Model', 'Symbol'], var_name='Len', value_name='Acc')
+  df['Len'] = df['Len'].astype(int)
+  # Create plot
+  sns.lineplot(x='Len', y='Acc', hue='Model', style='Symbol', data=df, sort=True)
   plt.ylim(0.4, 1.0)
   plt.ylabel("Accuracy")
-  plt.xlim(2, arange[-1])
-  plt.xticks(arange[::8])
-  if item == 'pl':
-    plt.xlabel("Length of predicates (characters)")
-  else:
-    plt.xlabel("Length of constants (characters)")
-  plt.legend()
+  plt.xlim(2, 64)
+  plt.xlabel("Length of symbols")
   showsave_plot()
 
 def eval_pred_len():
