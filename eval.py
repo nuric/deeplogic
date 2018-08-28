@@ -144,7 +144,9 @@ def plot_dim():
   sns.lineplot(x='Dim', y='Mean', hue='Set', data=df,
                hue_order=['validation', 'easy', 'medium', 'hard'])
   plt.ylim(0.5, 1.0)
+  plt.ylabel("Mean Accuracy")
   plt.xlim(32, 128)
+  plt.xlabel("Dimension")
   plt.legend(loc='upper left')
   showsave_plot()
 
@@ -154,7 +156,8 @@ def plot_training():
   df = df[(df['Model'] == ARGS.model)]
   print(df.head())
   sns.set_style('whitegrid')
-  sns.barplot(x='Training', y='Mean', hue='Set', data=df)
+  sns.barplot(x='Training', y='Mean', hue='Set', errwidth=1.2, capsize=0.025, data=df)
+  plt.ylabel("Mean Accuracy")
   plt.ylim(0.5, 1.0)
   showsave_plot()
 
