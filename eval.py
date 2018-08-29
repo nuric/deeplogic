@@ -278,27 +278,25 @@ def plot_rules():
 def plot_attention():
   """Plot attention vector over given context."""
   model = create_model(iterations=ARGS.iterations, training=False)
-  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).s(b).",
-          "p(X):-q(X);r(X).r(a).q(a).r(b).q(b).",
-          "p(X):-q(X).p(X):-r(X).p(b).r(a).q(b)."]
-  fig, axes = plt.subplots(1, 3, figsize=(6.4, 2.4))
+  ctxs = ["p(X):-q(X).q(X):-r(X).r(X):-s(X).s(a).s(c).",
+          "p(X):-q(X);r(X).r(a).q(a).r(b).q(c).",
+          "p(X):-q(X).p(X):-r(X).p(c).r(a).q(c)."]
+  fig, axes = plt.subplots(1, 6)
   for i, ctx in enumerate(ctxs):
-    print("CTX:", ctx)
-    rs = ctx.split('.')[:-1]
-    ctx = [r + '.' for r in rs]
-    dgen = LogicSeq([[(ctx, "p(a).", 0)]], 1, False, False, pad=ARGS.pad)
-    out = model.predict_generator(dgen)
-    sims = out[:-1]
-    out = np.round(np.asscalar(out[-1]), 2)
-    sims = np.stack(sims, axis=0).squeeze()
-    print("ATTS:", sims)
-    sims = sims.T
-    ticks = (["()"] if ARGS.pad else []) + ["$\phi$"]
-    axes[i].get_xaxis().set_ticks_position('top')
-    sns.heatmap(sims, vmin=0, vmax=1, cmap="Blues", yticklabels=rs + ticks,
-                linewidths=0.5, square=True, cbar=False, ax=axes[i])
-    axes[i].set_xlabel("p(Q|C)=" + str(out))
-    print("OUT:", out)
+    for j, t in enumerate(["p(a).", "p(b)."]):
+      rs = ctx.split('.')[:-1]
+      dgen = LogicSeq([[([r + '.' for r in rs], t, 0)]], 1, False, False, pad=ARGS.pad)
+      out = model.predict_generator(dgen)
+      sims = out[:-1]
+      out = np.round(np.asscalar(out[-1]), 2)
+      sims = np.stack(sims, axis=0).squeeze()
+      sims = sims.T
+      ticks = (["()"] if ARGS.pad else []) + ["$\phi$"]
+      axes[i*2+j].get_xaxis().set_ticks_position('top')
+      sns.heatmap(sims, vmin=0, vmax=1, cmap="Blues", yticklabels=rs + ticks if j % 2 == 0 else False,
+                  xticklabels=range(1, ARGS.iterations+1),
+                  linewidths=0.5, square=True, cbar=False, ax=axes[i*2+j])
+      axes[i*2+j].set_xlabel("p(a) "+str(out) if j % 2 == 0 else "p(b) "+str(out))
   plt.tight_layout()
   showsave_plot()
 
