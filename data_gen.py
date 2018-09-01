@@ -204,7 +204,15 @@ def nstep_deduction(steps, negation=False, upreds=None):
     targets = [((preds[0], args), 1-int(negation))]
     gen_task(cctx, targets, preds)
     # Add failure case
-    add_pred(ctx, spred, preds, args)
+    if R.random() < 0.5:
+      # Fail on broken chain
+      p = r_preds(1, preds)[0]
+      preds.append(p)
+      add_pred(ctx, spred, preds, args, 1.0)
+      ctx[0] = [(preds[0], vs), (prefix+p, vs)]
+    else:
+      # Fail on last ground case
+      add_pred(ctx, spred, preds, args)
     targets = [((preds[0], args), int(negation))]
     gen_task(ctx, targets, preds)
 
