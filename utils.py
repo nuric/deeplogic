@@ -81,7 +81,7 @@ class LogicSeq(Sequence):
       ctx, isnew_ctx = list(), False
       for l in f.readlines():
         l = l.strip()
-        if l[0] == '?':
+        if l and l[0] == '?':
           _, q, t = l.split()
           dpoints.append((ctx.copy(), q, int(t)))
           isnew_ctx = True

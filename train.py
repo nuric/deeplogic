@@ -77,7 +77,7 @@ def train():
   model.fit_generator(traind, epochs=ARGS.epochs,
                       callbacks=callbacks,
                       validation_data=vald,
-                      verbose=2, shuffle=True,
+                      verbose=1, shuffle=True,
                       initial_epoch=callbacks[0].get_last_epoch())
 
 def debug():
@@ -88,7 +88,7 @@ def debug():
   while True:
     try:
       ctx = input("CTX: ").replace(' ', '')
-      if not ctx:
+      if ctx == 'q':
         break
       q = input("Q: ").replace(' ', '')
       print("OUT:", ask(ctx, q, model))

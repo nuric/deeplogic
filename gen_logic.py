@@ -76,11 +76,30 @@ def output(context, targets):
   for t, v in targets:
     print(TARGET_T.format(write_r([t]), v))
 
+def cv_mismatch(consts):
+  """Returns a possible mismatching variable binding for given constants."""
+  if len(consts) <= 1 or len(set(consts)) == 1:
+    return list()
+  # We know some constant is different
+  # [a,b,a,c] -> [X,Y,Y,Z]
+  # [a,b] -> [X,X] are mismatches
+  # assign same variables to different constants
+  vs = r_vars(len(consts)-1) # [X,Y,Z,..]
+  for i, c in enumerate(consts[1:]):
+    if c != consts[0]:
+      # we haven't seen it before
+      vs.insert(i+1,vs[0])
+      break
+  assert len(vs) == len(consts)
+  return vs
+
 def generate(depth=0, context=None, target=None, success=None,
              upreds=None, uconsts=None, stats=None):
   """Generate tree based logic program."""
   ctx = context or list()
-  t = target or [r_preds(1)[0]] + r_consts(R.randint(1, ARGS.arity))
+  args = target[1:] if target else [r_consts(1)[0] for _ in range(ARGS.arity)]
+  t = target or [r_preds(1)[0]] + [R.choice(args) for _ in range(R.randint(1, ARGS.arity))]
+  arity = len(t[1:])
   succ = success if success is not None else R.choice((True, False))
   upreds = upreds or set([t[0]])
   uconsts = uconsts or set(t[1:])
@@ -105,22 +124,31 @@ def generate(depth=0, context=None, target=None, success=None,
   for child_depth, child_succ in zip(depths, succs):
     # Base case
     if child_depth == 0:
-      if R.random() < 0.5:
+      if R.random() < 0.20:
         # The constant doesn't match
         args = t[1:]
         args[R.randrange(len(args))] = r_consts(1, uconsts)[0]
         uconsts.update(args)
         ctx.append([[t[0]] + args])
-      if R.random() < 0.5:
+      if R.random() < 0.20:
         # The predicate doesn't match
         p = r_preds(1, upreds)[0]
         upreds.add(p)
         ctx.append([[p,] + t[1:]])
+      if R.random() < 0.20:
+        # The arity doesn't match
+        ctx.append([[t[0]] + t[1:] + [R.choice(t[1:] + r_consts(arity))]])
+      if R.random() < 0.20:
+        # The variables don't match
+        vs = cv_mismatch(t[1:])
+        if vs:
+          ctx.append([[t[0]] + vs])
       # The predicate doesn't appear at all
       if child_succ:
         if R.random() < 0.5:
           # p(X). case
-          ctx.append([[t[0]] + r_vars(len(t[1:]))])
+          # TODO: fix tight bound on variable matching
+          ctx.append([[t[0]] + r_vars(arity)])
         elif not is_tadded:
           # ground case
           ctx.append([t])
@@ -131,14 +159,28 @@ def generate(depth=0, context=None, target=None, success=None,
     stats.setdefault('body_num', list()).append(num_body)
     negation = [R.choice((True, False)) for _ in range(num_body)] \
                if ARGS.negation else [False]*num_body
+    # Compute recursive success targets
+    succ_targets = [R.choice((True, False)) for _ in range(num_body)] \
+                   if not child_succ else [not n for n in negation]
+    if not child_succ:
+      # Ensure a failed target
+      ri = R.randrange(len(succ_targets))
+      # succeeding negation fails this, vice versa
+      succ_targets[ri] = negation[ri]
     # Create rule
     body_preds = r_preds(num_body, upreds)
     upreds.update(body_preds)
-    arity = len(t[1:])
     lit_vars = r_vars(arity)
+    if not child_succ and R.random() < 0.5:
+      # Fail due to variable pattern mismatch
+      vs = cv_mismatch(t[1:])
+      if vs:
+        lit_vars = vs
+        succ_targets = [R.choice((True, False)) for _ in range(num_body)]
     lit_vars.extend([r_vars(1)[0] for _ in range(ARGS.unbound_vars)])
     rule = [[t[0]]+lit_vars[:arity]]
     vcmap = {lit_vars[i]:t[i+1] for i in range(arity)}
+    # Compute child targets
     child_targets = list()
     for i in range(num_body):
       R.shuffle(lit_vars)
@@ -147,14 +189,6 @@ def generate(depth=0, context=None, target=None, success=None,
       vs = [vcmap.get(v, r_consts(1, uconsts)[0]) for v in lit_vars[:arity]]
       child_targets.append([pred[0]]+vs)
     ctx.append(rule)
-    # Compute recursive targets
-    succ_targets = [R.choice((True, False)) for _ in range(num_body)] \
-                   if not child_succ else [not n for n in negation]
-    if not child_succ:
-      # Ensure a failed target
-      ri = R.randrange(len(succ_targets))
-      # succeeding negation fails this, vice versa
-      succ_targets[ri] = negation[ri]
     # Recurse
     for child_t, s in zip(child_targets, succ_targets):
       generate(child_depth-1, ctx, child_t, s, upreds, uconsts, stats)
