@@ -93,6 +93,24 @@ def cv_mismatch(consts):
   assert len(vs) == len(consts)
   return vs
 
+def cv_match(consts):
+  """Returns a possible matching variable binding for given constants."""
+  if len(consts) <= 1:
+    return r_vars(len(consts))
+  # We want to *randomly* assing the same variable to same constants
+  # [a,a,b] -> [X,Y,Z] -> [X,X,Y]
+  vs = r_vars(len(consts))
+  cvmap = dict()
+  for i, c in enumerate(consts):
+    if c in cvmap:
+      if R.random() < 0.5:
+        vs[i] = cvmap[c] # assign the same variable
+      # otherwise get a unique variable
+    else:
+      cvmap[c] = vs[i]
+  assert len(vs) == len(consts)
+  return vs
+
 def generate(depth=0, context=None, target=None, success=None,
              upreds=None, uconsts=None, stats=None):
   """Generate tree based logic program."""
@@ -147,8 +165,7 @@ def generate(depth=0, context=None, target=None, success=None,
       if child_succ:
         if R.random() < 0.5:
           # p(X). case
-          # TODO: fix tight bound on variable matching
-          ctx.append([[t[0]] + r_vars(arity)])
+          ctx.append([[t[0]] + cv_match(t[1:])])
         elif not is_tadded:
           # ground case
           ctx.append([t])
@@ -170,7 +187,7 @@ def generate(depth=0, context=None, target=None, success=None,
     # Create rule
     body_preds = r_preds(num_body, upreds)
     upreds.update(body_preds)
-    lit_vars = r_vars(arity)
+    lit_vars = cv_match(t[1:])
     if not child_succ and R.random() < 0.5:
       # Fail due to variable pattern mismatch
       vs = cv_mismatch(t[1:])
