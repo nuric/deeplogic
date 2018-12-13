@@ -201,9 +201,10 @@ def generate(depth=0, context=None, target=None, success=None,
     child_targets = list()
     for i in range(num_body):
       R.shuffle(lit_vars)
-      pred = [body_preds[i]] + lit_vars[:arity]
+      child_arity = R.randint(1, arity)
+      pred = [body_preds[i]] + lit_vars[:child_arity]
       rule.append([(NEG_PREFIX if negation[i] else "") + pred[0]] + pred[1:])
-      vs = [vcmap.get(v, r_consts(1, uconsts)[0]) for v in lit_vars[:arity]]
+      vs = [vcmap.get(v, r_consts(1, uconsts)[0]) for v in lit_vars[:child_arity]]
       child_targets.append([pred[0]]+vs)
     ctx.append(rule)
     # Recurse
