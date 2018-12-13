@@ -23,7 +23,7 @@ PRED_SEP = ';'
 NEG_PREFIX = '-'
 TARGET_T = "? {} {}"
 
-# pylint: disable=line-too-long,too-many-arguments
+# pylint: disable=line-too-long,too-many-arguments,too-many-statements
 
 def r_string(symbols, length):
   """Return random sequence from given symbols."""
@@ -98,7 +98,7 @@ def generate(depth=0, context=None, target=None, success=None,
   depths = [R.randint(0, depth) if depth > 0 else 0 for _ in range(num_rules)]
   if max(depths) != depth:
     depths[R.randrange(num_rules)] = depth
-  print("HERE:", num_rules, succs, depths, t)
+  # print("HERE:", num_rules, succs, depths, t)
 
   # Generate OR branches
   is_tadded = False
@@ -139,13 +139,13 @@ def generate(depth=0, context=None, target=None, success=None,
     lit_vars.extend([r_vars(1)[0] for _ in range(ARGS.unbound_vars)])
     rule = [[t[0]]+lit_vars[:arity]]
     vcmap = {lit_vars[i]:t[i+1] for i in range(arity)}
-    targets = list()
+    child_targets = list()
     for i in range(num_body):
       R.shuffle(lit_vars)
       pred = [body_preds[i]] + lit_vars[:arity]
       rule.append([(NEG_PREFIX if negation[i] else "") + pred[0]] + pred[1:])
       vs = [vcmap.get(v, r_consts(1, uconsts)[0]) for v in lit_vars[:arity]]
-      targets.append([pred[0]]+vs)
+      child_targets.append([pred[0]]+vs)
     ctx.append(rule)
     # Compute recursive targets
     succ_targets = [R.choice((True, False)) for _ in range(num_body)] \
@@ -156,8 +156,8 @@ def generate(depth=0, context=None, target=None, success=None,
       # succeeding negation fails this, vice versa
       succ_targets[ri] = negation[ri]
     # Recurse
-    for target, s in zip(targets, succ_targets):
-      generate(child_depth-1, ctx, target, s, upreds, uconsts, stats)
+    for child_t, s in zip(child_targets, succ_targets):
+      generate(child_depth-1, ctx, child_t, s, upreds, uconsts, stats)
   return ctx, [(t, int(succ))], stats
 
 if __name__ == '__main__':
@@ -178,6 +178,5 @@ if __name__ == '__main__':
   ARGS = parser.parse_args()
 
   for _ in range(ARGS.size):
-    context, targets, stats = generate(depth=ARGS.depth)
-    output(context, targets)
-    print(stats)
+    context_out, targets_out, _ = generate(depth=ARGS.depth)
+    output(context_out, targets_out)

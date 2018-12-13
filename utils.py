@@ -45,9 +45,9 @@ class LogicSeq(Sequence):
       rules = [r.replace(':-', '.').replace(';', '.').split('.')[:-1]
                for r in ctx]
       if self.pad:
-        rules.append(['()']) # Append null sentinel
+        rules.append(['()']) # Append blank rule
       if self.zeropad:
-        rules.append(['']) # Append zero padding
+        rules.append(['']) # Append null sentinel
       rules = [[[CHAR_IDX[c] for c in pred]
                 for pred in r]
                for r in rules]
