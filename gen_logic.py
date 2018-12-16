@@ -132,7 +132,8 @@ def generate(depth=0, context=None, target=None, success=None,
   if succ and not any(succs):
     # Ensure at least one OR branch succeeds
     succs[R.randrange(len(succs))] = True
-  depths = [R.randint(0, depth) if depth > 0 else 0 for _ in range(num_rules)]
+  # Rule depths randomised between 0 to max depth
+  depths = [R.randint(0, depth) for _ in range(num_rules)]
   if max(depths) != depth:
     depths[R.randrange(num_rules)] = depth
   # print("HERE:", num_rules, succs, depths, t)

@@ -4,7 +4,7 @@ import keras.backend as K
 import keras.layers as L
 from keras.models import Model
 
-from zerogru import ZeroGRU, NestedTimeDist
+from .zerogru import ZeroGRU, NestedTimeDist
 
 # pylint: disable=line-too-long
 
