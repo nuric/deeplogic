@@ -50,10 +50,14 @@ This script generates a pair of positive and negative answers over the same quer
 
 ```bash
 mkdir data
-./gen_task.sh all # will generate single file with all tasks
-./gen_task.sh acc # will generate accumulating files up to task 5, so 1, 1 2, 1 2 3 etc
-./gen_task.sh iter # will generate based on number of iterations, so 1 2, 1 2 3 7 9 12, etc
-./gen_task.sh eval_single # will generate evaluate / test sets with increasing symbol and noise lenghts
+# will generate single file with all tasks, 20k per task
+./gen_task.sh all 20000 
+# will generate accumulating files up to task 5, so 1, 1 2, 1 2 3 etc
+./gen_task.sh acc 20000
+# will generate based on number of iterations, so 1 2, 1 2 3 7 9 12, etc
+./gen_task.sh iter 20000
+# will generate evaluate / test sets with increasing symbol and noise lenghts
+./gen_task.sh eval_single 10000
 ```
 
 ### Generic Logic Programs
