@@ -367,8 +367,8 @@ def gen_task8(upreds=None):
   # Add non-matching ground cases
   argso = r_consts(3)
   argso.insert(R.randint(1, 2), r_consts(1, argso)[0])
-  add_pred(ctx, (preds[1], argso[:2]), preds, argso, 1.0)
-  add_pred(ctx, (preds[2], argso[2:]), preds, argso, 1.0)
+  add_pred(ctx, (preds[1], argso[:2]), preds, argso, 0.5)
+  add_pred(ctx, (preds[2], argso[2:]), preds, argso, 0.5)
   # Successful case
   # Fail on half-matching existential
   targets = [((preds[0], [args[0], args[2]]), 1),
