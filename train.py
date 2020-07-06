@@ -74,11 +74,11 @@ def train():
   tasks = ARGS.tasks or range(1, 13)
   traind = LogicSeq.from_files([ft.format("train", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
   vald = LogicSeq.from_files([ft.format("val", i) for i in tasks], ARGS.batch_size, pad=ARGS.pad)
-  model.fit_generator(traind, epochs=ARGS.epochs,
-                      callbacks=callbacks,
-                      validation_data=vald,
-                      verbose=1, shuffle=True,
-                      initial_epoch=callbacks[0].get_last_epoch())
+  model.fit(traind, epochs=ARGS.epochs,
+            callbacks=callbacks,
+            validation_data=vald,
+            verbose=1, shuffle=True,
+            initial_epoch=callbacks[0].get_last_epoch())
 
 def debug():
   """Run a single data point for debugging."""
@@ -123,10 +123,10 @@ def ilp(training=True):
                                    save_best_only=True,
                                    save_weights_only=True),
                  C.TerminateOnNaN()]
-    model.fit_generator(traind, epochs=200,
-                        callbacks=callbacks,
-                        validation_data=testd,
-                        shuffle=True)
+    model.fit(traind, epochs=200,
+              callbacks=callbacks,
+              validation_data=testd,
+              shuffle=True)
   else:
     # Dummy input to get templates
     ctx = "b(h).v(O):-c(O).c(a)."
