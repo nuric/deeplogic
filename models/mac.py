@@ -26,21 +26,21 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
                        trainable=False,
                        weights=[onehot_weights],
                        name='onehot')
-  embedded_ctx = onehot(flat_ctx) # (?, rules, preds*chars*char_size)
+  embedded_ctx = onehot(flat_ctx) # (?, rules, preds*chars, char_size)
   embedded_q = onehot(query) # (?, chars, char_size)
 
   # Embed predicates
   embed_pred = ZeroGRU(dim, go_backwards=True, return_sequences=True, return_state=True, name='embed_pred')
   embedded_predqs, embedded_predq = embed_pred(embedded_q) # (?, chars, dim)
-  embed_pred.return_sequences = False
-  embed_pred.return_state = False
+  embed_rule = ZeroGRU(dim, go_backwards=True, name='embed_rule')
   # Embed every rule
-  embedded_rules = L.TimeDistributed(embed_pred, name='rule_embed')(embedded_ctx)
+  embedded_rules = L.TimeDistributed(embed_rule, name='rule_embed')(embedded_ctx)
   # (?, rules, dim)
 
   # Reused layers over iterations
   concatm1 = L.Concatenate(name='concatm1')
-  repeat_toqlen = L.RepeatVector(K.shape(embedded_q)[1], name='repeat_toqlen')
+  # repeat_toqlen = L.RepeatVector(K.shape(embedded_q)[1], name='repeat_toqlen')
+  repeat_toqlen = L.Lambda(lambda xs: K.repeat(xs[0], K.shape(xs[1])[1]), name='repeat_to_qlen')
   mult_cqi = L.Multiply(name='mult_cqi')
   dense_cqi = L.Dense(dim, name='dense_cqi')
   dense_cais = L.Dense(1, name='dense_cais')
@@ -49,7 +49,8 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
   softmax1 = L.Softmax(axis=1, name='softmax1')
   dot11 = L.Dot((1, 1), name='dot11')
 
-  repeat_toctx = L.RepeatVector(K.shape(context)[1], name='repeat_toctx')
+  # repeat_toctx = L.RepeatVector(K.shape(context)[1], name='repeat_toctx')
+  repeat_toctx = L.Lambda(lambda xs: K.repeat(xs[0], K.shape(xs[1])[1]), name='repeat_to_ctx')
   memory_dense = L.Dense(dim, name='memory_dense')
   kb_dense = L.Dense(dim, name='kb_dense')
   mult_info = L.Multiply(name='mult_info')
@@ -79,16 +80,16 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
     # Control Unit
     qi = L.Dense(dim, name='qi'+str(i))(embedded_predq) # (?, dim)
     cqi = dense_cqi(concatm1([control, qi])) # (?, dim)
-    cais = dense_cais(mult_cqi([repeat_toqlen(cqi), embedded_predqs])) # (?, qlen, 1)
+    cais = dense_cais(mult_cqi([repeat_toqlen([cqi, embedded_q]), embedded_predqs])) # (?, qlen, 1)
     cais = squeeze2(cais) # (?, qlen)
     cais = softmax1(cais) # (?, qlen)
     outs.append(cais)
     new_control = dot11([cais, embedded_predqs]) # (?, dim)
 
     # Read Unit
-    info = mult_info([repeat_toctx(memory_dense(memory)), kb_dense(embedded_rules)]) # (?, rules, dim)
+    info = mult_info([repeat_toctx([memory_dense(memory), context]), kb_dense(embedded_rules)]) # (?, rules, dim)
     infop = info_dense(concatm1([info, embedded_rules])) # (?, rules, dim)
-    rai = read_att_dense(mult_att_dense([repeat_toctx(new_control), infop])) # (?, rules, 1)
+    rai = read_att_dense(mult_att_dense([repeat_toctx([new_control, context]), infop])) # (?, rules, 1)
     rai = squeeze2(rai) # (?, rules)
     rai = softmax1(rai) # (?, rules)
     outs.append(rai)
@@ -109,8 +110,8 @@ def build_model(char_size=27, dim=64, iterations=4, training=True, ilp=False, pc
     new_memory = gate2([mip, memory, cip]) # (?, dim)
 
     # Update state
-    pcontrols.append(new_control)
-    pmemories.append(new_memory)
+    pcontrols = pcontrols + [new_control]
+    pmemories = pmemories + [new_memory]
     memory, control = new_memory, new_control
 
   # Output Unit
