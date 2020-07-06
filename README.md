@@ -114,7 +114,7 @@ vh(pfv).
 Unlike the previous script, `gen_logic.py` generates at either a positive or negative result at random.
 
 ## Training
-There is a training script `train.py` that encapsulates training models defined in `models` directory. The models are built using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) which can be installed using:
+There is a training script `train.py` that encapsulates training models defined in `models` directory. The models are built using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/), the results in experiments are run with older versions see issue [#1][https://github.com/nuric/deeplogic/issues/1] for more information, which can be installed using:
 
 ```bash
 pip3 install --no-cache-dir --upgrade -r requirements.py
